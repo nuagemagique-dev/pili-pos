@@ -12,6 +12,7 @@ import {
   DEFAULT_CATEGORY,
   DEFAULT_MENU_ITEM,
 } from './fixtures/mock-ipc'
+import { tapMore } from './fixtures/cart-more'
 
 // Certification dossier screenshots of the v1.0 features added after the
 // first tour (table transfer, payment correction, till discount, kitchen
@@ -83,7 +84,7 @@ const tablesWith = (occupied: Record<number, number>) => () =>
 test.describe('Lot 2 - transfert de table, correction de paiement, remise, note de cuisine', () => {
   test('60_table_transfer_picker - changer de table depuis la commande', async ({ page }) => {
     await toOrder(page, { list_tables: tablesWith({ 4: 44 }) })
-    await page.getByTestId('transfer-table').click()
+    await tapMore(page, 'transfer-table')
     const picker = page.getByRole('dialog', { name: 'Changer de table' })
     await expect(picker).toBeVisible()
     await picker.getByTestId('pick-table-5').click()
@@ -168,7 +169,7 @@ test.describe('Lot 2 - transfert de table, correction de paiement, remise, note 
 
   test('63_discount_dialog - remise du Gérant, aperçu avant confirmation', async ({ page }) => {
     await toOrder(page, { list_cart_lines: () => [PLAIN] })
-    await page.getByTestId('discount-open').click()
+    await tapMore(page, 'discount-open')
     const dialog = page.getByTestId('discount-dialog')
     await expect(dialog).toBeVisible()
     await dialog.getByTestId('discount-quick-50').click()

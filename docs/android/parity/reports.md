@@ -46,6 +46,13 @@ screen only calls it through the view model and the shared stores.
   shows a toast); a refusal shows the text of the engine's error there.
 - **Reprint of a Z is a copy.** The history dialog closes and the copy flow opens on the picker, before anything is
   signed, exactly as Vue.
+- **No empty medium step (audit R1).** Without e-mail tickets (the mail probe says not configured, or failed) the copy
+  flow has no picker: `reportsCallbacks` opens the flow, reads the mail status, and signs the copy on paper at once
+  (`ReportsViewModel.confirmCopy`), for a ticket and for the reprint of a Z. Vue does the same in `openCopy`. With e-mail
+  configured the picker stays before the signature. The refund has one confirmation step (Vue now shows the same recap as
+  Compose: lines, VAT summary and total in cash) whose button reads `refund_confirm_final` ("Confirmer le remboursement");
+  the medium picker only shows in it when e-mail is configured. The row button and the lines-step button stay
+  "Rembourser". The total caption is the Vue key `refund_cash_total`.
 - **Refund preview (UI-PD307).** Vue shows `round5(sum of unit price times quantity)` on the refund buttons. The
   Kotlin screen computes no money. Each ticked line's amount is the single `vatSplit` row of
   `VatLine(vatCode, unitPriceCents, ticked quantity)` (as `CartAmounts.lineAmount`), the VAT summary is `vatSplit`

@@ -201,6 +201,7 @@ internal class RecordingNavigator : AppNavigator {
 }
 
 /** A started login view model with the real stores it drives, built on one engine fixture. */
+@Suppress("LongParameterList")
 internal class LoginRig(
     val f: EngineFixture,
     val model: LoginViewModel,
@@ -208,6 +209,7 @@ internal class LoginRig(
     val settings: PosSettingsStore,
     val catalog: MessageCatalog,
     val badges: BadgeRig,
+    val session: SessionStore,
 ) {
     val state get() = model.state.value
 
@@ -263,5 +265,5 @@ internal suspend fun TestScope.startLogin(
     val entry = TestEntryPoint(session, settings, integrations, fdm, gateway, errors, toasts, catalog, errorTexts, badges.store)
     val model = LoginViewModel(entry)
     runCurrent()
-    return LoginRig(f, model, toasts, settings, catalog, badges)
+    return LoginRig(f, model, toasts, settings, catalog, badges, session)
 }

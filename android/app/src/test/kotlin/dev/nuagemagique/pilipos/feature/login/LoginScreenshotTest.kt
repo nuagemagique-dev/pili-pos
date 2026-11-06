@@ -78,6 +78,12 @@ class LoginScreenshotTest {
     }
 
     @Test
+    fun tilesAfterAnIdleLock() {
+        // "Caisse verrouillée après 5 min d'inactivité" above the tiles (UX audit L4).
+        capture(base.copy(idleLockedAfterMin = 5), "login_idle_locked")
+    }
+
+    @Test
     fun pin() {
         val pad = PinPadState(PinMode.Verify)
         pad.apply(NumPadKey.Digit('4'))

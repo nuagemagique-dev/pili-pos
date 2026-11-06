@@ -58,7 +58,7 @@ class ErrorPresenterTest {
         }
 
     @Test
-    fun showAddsAnErrorToastWithTheTtl() =
+    fun showAddsAnErrorToastThatStaysUntilTapped() =
         runTest {
             val store = toastStore(backgroundScope)
             val presenter = ErrorPresenter(store, errors)
@@ -67,14 +67,14 @@ class ErrorPresenterTest {
             assertEquals(id, toast.id)
             assertEquals(ToastVariant.Error, toast.variant)
             assertEquals("Edition : " + errors.describe(noLines, AppLanguage.FR), toast.message)
-            advanceTimeBy(4999L)
+            advanceTimeBy(60_000L)
             assertEquals(1, store.toasts.value.size)
-            advanceTimeBy(2L)
+            store.dismiss(id)
             assertTrue(store.toasts.value.isEmpty())
         }
 
     @Test
-    fun showRawAddsAnErrorToastAndHonoursAGivenTtl() =
+    fun showRawAddsAnErrorToastWhateverTheGivenTtl() =
         runTest {
             val store = toastStore(backgroundScope)
             val presenter = ErrorPresenter(store, errors)
@@ -83,9 +83,10 @@ class ErrorPresenterTest {
             assertEquals(listOf(ToastVariant.Error, ToastVariant.Error), store.toasts.value.map { it.variant })
             assertEquals(errors.describe("order_no_lines", AppLanguage.EN), store.toasts.value[0].message)
             assertEquals(errors.describe(null as String?, AppLanguage.EN), store.toasts.value[1].message)
-            advanceTimeBy(5001L)
-            assertEquals(1, store.toasts.value.size)
-            advanceTimeBy(1000L)
+            // An error never expires by itself (UX audit C5): both wait for a tap.
+            advanceTimeBy(60_000L)
+            assertEquals(2, store.toasts.value.size)
+            store.toasts.value.forEach { store.dismiss(it.id) }
             assertTrue(store.toasts.value.isEmpty())
         }
 }

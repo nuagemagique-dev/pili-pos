@@ -32,6 +32,7 @@ import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.PosSettings
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
+import java.time.Clock
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Lifetime of the toast that warns about an operator without a PIN, in milliseconds (5000 in `LoginView.vue`). */
@@ -60,6 +61,7 @@ private const val PIN_REQUIRED = "pin_required"
 internal class LoginViewModel(
     private val entry: LoginEntryPoint,
     fdm: FdmProbe = StoreFdmProbe(entry.fdm()),
+    private val clock: Clock = Clock.systemUTC(),
 ) : ViewModel() {
     private val settings = entry.settings()
     private val badges = entry.badges()
@@ -90,6 +92,9 @@ internal class LoginViewModel(
     val effects: Flow<LoginEffect> = effectChannel.receiveAsFlow()
 
     init {
+        viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            entry.session().idleLockedAfterMin.collect { minutes -> own.update { it.copy(idleLockedAfterMin = minutes) } }
+        }
         viewModelScope.launch { runChecks() }
         viewModelScope.launch { loadShifts() }
         viewModelScope.launch { loadUsers() }
@@ -145,9 +150,44 @@ internal class LoginViewModel(
             // The HubRise switch loads when the engine turns ready: make sure it has before reading it.
             if (entry.integrations().state.value == null) entry.integrations().load()
             val list = checks.run(entry.integrations().hubriseEnabled.value)
-            own.update { it.copy(checks = list) }
+            val now = clock.instant()
+            own.update { it.copy(checks = list, checkedAt = list.associate { c -> c.id to now }, fdmCode = checks.fdmCode) }
         } finally {
             checking.set(false)
+        }
+    }
+
+    // ── Status sheet (UX audit L2) ────────────────────────────────
+
+    /** A tap on a check row: opens the status sheet of that device. */
+    fun openDevice(id: CheckId) {
+        own.update { it.copy(deviceSheet = id) }
+    }
+
+    /** Closes the status sheet. */
+    fun closeDevice() {
+        own.update { it.copy(deviceSheet = null) }
+    }
+
+    /** "Réessayer maintenant" of the status sheet: runs the check of that device again, that one only. */
+    fun retryDevice() {
+        val id = own.value.deviceSheet ?: return
+        if (own.value.deviceBusy) return
+        viewModelScope.launch {
+            own.update { it.copy(deviceBusy = true) }
+            try {
+                val fresh = checks.runOne(id, entry.integrations().hubriseEnabled.value)
+                val now = clock.instant()
+                own.update { current ->
+                    current.copy(
+                        checks = current.checks.map { if (it.id == id && fresh != null) fresh else it },
+                        checkedAt = current.checkedAt + (id to now),
+                        fdmCode = if (id == CheckId.Fdm) checks.fdmCode else current.fdmCode,
+                    )
+                }
+            } finally {
+                own.update { it.copy(deviceBusy = false) }
+            }
         }
     }
 

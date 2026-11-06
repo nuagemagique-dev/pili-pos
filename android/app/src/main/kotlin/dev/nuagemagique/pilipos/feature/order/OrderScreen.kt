@@ -68,6 +68,11 @@ internal data class OrderCallbacks(
     val onUnpaidDone: () -> Unit = {},
     /** The free table picked in the table picker. */
     val onTransferTarget: (Int) -> Unit = {},
+    /** The rows of the "Plus" menu: change table, discount, remove the discount, customer left. */
+    val onMoreTransfer: () -> Unit = {},
+    val onMoreDiscount: () -> Unit = {},
+    val onMoreDiscountRemove: () -> Unit = {},
+    val onMoreUnpaid: () -> Unit = {},
     /** The input of the discount dialog. */
     val onDiscountChosen: (DiscountInput) -> Unit = {},
     /** The manager PIN of a discount or its removal; throws what the engine refused. */
@@ -135,6 +140,10 @@ internal fun OrderRoute(
             onCoursePick = model::pickCourse,
             onUnpaidPin = model::closeUnpaid,
             describeError = model::describe,
+            onMoreTransfer = model::askTransfer,
+            onMoreDiscount = { model.askDiscount() },
+            onMoreDiscountRemove = { model.askRemoveDiscount() },
+            onMoreUnpaid = model::askCloseUnpaid,
             onTransferTarget = model::confirmTransfer,
             onDiscountChosen = model::chooseDiscount,
             onDiscountPin = model::confirmDiscountPin,
@@ -155,6 +164,7 @@ internal fun OrderRoute(
             onPreBill = model::printPreBill,
             onCloseUnpaid = model::askCloseUnpaid,
             onTransfer = model::askTransfer,
+            onMore = model::openCartMore,
             onDiscount = { model.askDiscount() },
             onRemoveOrderDiscount = { model.askRemoveDiscount() },
             onOffer = { model.askDiscount(it) },
@@ -282,6 +292,7 @@ internal fun BoxScope.OrderDialogs(
                 onCancel = callbacks.onDismiss,
                 forWeight = dialog.forWeight,
             )
+        is OrderDialog.CartMore -> CartMoreDialog(dialog, callbacks)
         is OrderDialog.TablePicker ->
             TablePickerDialog(dialog.from, dialog.tables, onConfirm = callbacks.onTransferTarget, onCancel = callbacks.onDismiss)
         is OrderDialog.SoldOut -> SoldOutDialog(dialog.item, callbacks.onAvailability, callbacks.onDismiss)

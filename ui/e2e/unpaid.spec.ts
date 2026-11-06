@@ -10,6 +10,7 @@ import {
   DEFAULT_CATEGORY,
   DEFAULT_MENU_ITEM,
 } from './fixtures/mock-ipc'
+import { tapMore, expectNoMoreRow } from './fixtures/cart-more'
 
 // The customer left without paying (Advanced Set UC4109): a manager
 // closes the order from the cart, confirmed by their PIN. The backend
@@ -41,7 +42,7 @@ async function typePin(page: Page, pin: string) {
 
 test('[UC4109] a manager closes the table unpaid with their PIN', async ({ page }) => {
   await toOrder(page)
-  await page.locator('.unpaid-btn').click()
+  await tapMore(page, 'unpaid-close')
   await expect(page.locator('.pin-dialog .hint')).toContainText('sans paiement')
   await typePin(page, '4321')
 
@@ -64,7 +65,7 @@ test('a wrong PIN closes nothing and says so', async ({ page }) => {
     delivery: null,
     kitchen_slip: null,
   })
-  await page.locator('.unpaid-btn').click()
+  await tapMore(page, 'unpaid-close')
   await typePin(page, '0000')
   await expect(page.locator('.pin-dialog .error-msg')).toHaveText('PIN incorrect')
   await expect(page).toHaveURL(/order/u)
@@ -72,7 +73,7 @@ test('a wrong PIN closes nothing and says so', async ({ page }) => {
 
 test('back leaves the order open', async ({ page }) => {
   await toOrder(page)
-  await page.locator('.unpaid-btn').click()
+  await tapMore(page, 'unpaid-close')
   await page.locator('.pin-dialog').getByRole('button', { name: 'Retour' }).click()
   await expect(page.locator('.pin-dialog')).toHaveCount(0)
   expect(await ipcCalls(page, 'close_unpaid')).toHaveLength(0)
@@ -82,5 +83,5 @@ test('back leaves the order open', async ({ page }) => {
 test('a cashier does not see the button', async ({ page }) => {
   await toOrder(page, CASHIER)
   await expect(page.locator('.checkout-btn')).toBeVisible()
-  await expect(page.locator('.unpaid-btn')).toHaveCount(0)
+  await expectNoMoreRow(page, 'unpaid-close')
 })

@@ -59,7 +59,7 @@ The `args` column is the object `ui/src/api/ipc.ts` passes to `invoke` (top leve
 |---------|------------------------------|---------|-----------------|----------------------------------|
 | `login` | `{insz, pin?}` | `auth.rs` | `auth::do_login` | `login(insz, pin)` (`auth.rs`) |
 | `logout` | `{}` | `auth.rs` | `auth::do_logout` | `logout()` (`auth.rs`) |
-| `set_training_mode` | `{enabled}` boolean | `settings.rs` | `settings::do_set_training_mode` | `setTrainingMode(enabled)` (`reports.rs`) |
+| `set_training_mode` | `{enabled, pin?}` (`enabled` boolean; `pin` is the manager's own PIN, needed to turn it on) | `settings.rs` | `settings::do_set_training_mode` | `setTrainingMode(enabled, operatorPin)` (`reports.rs`) |
 | `work_in` | `{employeeInsz}` | `social.rs` | `social::do_work_in` | `workIn(employeeInsz)` (`reports.rs`) |
 | `work_out` | `{employeeInsz}` | `social.rs` | `social::do_work_out` | `workOut(employeeInsz)` (`reports.rs`) |
 | `end_shift` | `{insz, pin?}` | `social.rs` | `social::do_end_shift` | `endShift(insz, pin)` (`reports.rs`) |

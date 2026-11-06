@@ -308,7 +308,7 @@ test.describe('What a scan shows', () => {
     await scanBadge(page, TOKEN)
     await expect(page.locator('.toast')).toHaveText('Clock-in · Wei · 12:02')
     await scanBadge(page, TOKEN)
-    await expect(page.locator('.toast-error')).toHaveText('Unknown badge')
+    await expect(page.locator('.toast-error .toast-msg')).toHaveText('Unknown badge')
   })
 
   test('Chinese texts', async ({ page }) => {
@@ -325,7 +325,7 @@ test.describe('What a scan shows', () => {
     await scanBadge(page, TOKEN)
     await expect(page.locator('.toast')).toHaveText('下班 · Wei · 12:02')
     await scanBadge(page, TOKEN)
-    await expect(page.locator('.toast-error')).toHaveText('未知工牌')
+    await expect(page.locator('.toast-error .toast-msg')).toHaveText('未知工牌')
     await scanBadge(page, TOKEN)
     await expect(page.locator('.toast-error', { hasText: '打卡失败 · Wei' })).toBeVisible()
   })
@@ -672,7 +672,7 @@ test.describe('Settings: employees and badges', () => {
     await scanBadge(page, TOKEN)
     const dialog = page.locator('.pin-dialog')
     for (const d of TEST_PIN) await dialog.getByRole('button', { name: d, exact: true }).click()
-    await expect(page.locator('.toast-error')).toHaveText(
+    await expect(page.locator('.toast-error .toast-msg')).toHaveText(
       'Ce badge est déjà lié à un autre employé',
     )
     await expect(page.locator('.pin-dialog')).toHaveCount(0)
@@ -1105,7 +1105,7 @@ test.describe('Sound cue', () => {
     await scanBadge(page, TOKEN)
     await expect(page.locator('.toast')).toHaveText('Arrivée · Wei · 12:02')
     await scanBadge(page, TOKEN)
-    await expect(page.locator('.toast-error')).toHaveText('Badge inconnu')
+    await expect(page.locator('.toast-error .toast-msg')).toHaveText('Badge inconnu')
   })
 })
 
@@ -1252,7 +1252,7 @@ test.describe('Settings: dialogs closed without acting', () => {
     await overrideIPC(page, 'revoke_badge', { __reject: 'badge_none' })
     await row(page, 'Wei').getByTestId('badge-btn').click()
     await page.getByTestId('badge-revoke-confirm').click()
-    await expect(page.locator('.toast-error')).toHaveText("Cet employé n'a pas de badge")
+    await expect(page.locator('.toast-error .toast-msg')).toHaveText("Cet employé n'a pas de badge")
     await expect(row(page, 'Wei').getByTestId('badge-state')).toHaveText('Badge lié le 17/10/2026')
     await expect(page.getByTestId('badge-revoke-dialog')).toHaveCount(0)
   })

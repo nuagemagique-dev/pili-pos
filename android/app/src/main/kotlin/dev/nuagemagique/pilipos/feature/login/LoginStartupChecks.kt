@@ -9,6 +9,9 @@ import uniffi.pos_ffi.FdmSeverity
 /** Asks the FDM now and answers how serious its state is; null when the engine could not answer. */
 internal fun interface FdmProbe {
     suspend fun severity(): FdmSeverity?
+
+    /** The code of the reading [severity] just took (the reason shown by the status sheet); null when there is none. */
+    fun code(): String? = null
 }
 
 /**
@@ -23,6 +26,8 @@ internal class StoreFdmProbe(
     private val fdm: FdmStore,
 ) : FdmProbe {
     override suspend fun severity(): FdmSeverity? = if (fdm.checkNow()) fdm.state.value.severity else null
+
+    override fun code(): String? = fdm.state.value.code
 }
 
 /**
@@ -33,20 +38,39 @@ internal class LoginStartupChecks(
     private val gateway: EngineGateway,
     private val fdm: FdmProbe,
 ) {
+    /** The FDM code of the last [CheckId.Fdm] reading, the reason of its status sheet; null when there was none. */
+    var fdmCode: String? = null
+        private set
+
     /** Runs the checks in the Vue order; HubRise only when [hubriseEnabled]. */
-    suspend fun run(hubriseEnabled: Boolean): List<StartupCheck> =
-        buildList {
-            add(fdmCheck())
-            add(printerCheck(CheckId.Ticket, quiet { gateway.call { engine -> engine.checkPrinter() } }))
-            add(printerCheck(CheckId.Kitchen, quiet { gateway.call { engine -> engine.checkKitchenPrinter() } }))
+    suspend fun run(hubriseEnabled: Boolean): List<StartupCheck> = CheckId.entries.mapNotNull { runOne(it, hubriseEnabled) }
+
+    /**
+     * One check, the one "Réessayer maintenant" of the status sheet runs again (`probes` of `LoginView.vue`). Null when
+     * the device has no line: no card terminal is configured, or [id] is HubRise while HubRise is off.
+     */
+    suspend fun runOne(
+        id: CheckId,
+        hubriseEnabled: Boolean,
+    ): StartupCheck? =
+        when (id) {
+            CheckId.Fdm -> fdmCheck()
+            CheckId.Ticket -> printerCheck(id, quiet { gateway.call { engine -> engine.checkPrinter() } })
+            CheckId.Kitchen -> printerCheck(id, quiet { gateway.call { engine -> engine.checkKitchenPrinter() } })
             // Informative like the printers: a terminal that does not answer never blocks the login.
-            terminalCheck()?.let(::add)
-            if (hubriseEnabled) add(hubriseCheck())
-            add(mailCheck())
+            CheckId.Terminal -> terminalCheck()
+            CheckId.Hubrise -> if (hubriseEnabled) hubriseCheck() else null
+            CheckId.Mail -> mailCheck()
         }
 
-    private suspend fun fdmCheck(): StartupCheck =
-        when (fdm.severity()) {
+    private suspend fun fdmCheck(): StartupCheck {
+        val severity = fdm.severity()
+        fdmCode = fdm.code()
+        return fdmResult(severity)
+    }
+
+    private fun fdmResult(severity: FdmSeverity?): StartupCheck =
+        when (severity) {
             null -> StartupCheck(CheckId.Fdm, CheckState.None, "check_not_configured")
             FdmSeverity.BLOCKING -> StartupCheck(CheckId.Fdm, CheckState.Err, "check_offline")
             FdmSeverity.WARNING -> StartupCheck(CheckId.Fdm, CheckState.Warn, "check_warning")

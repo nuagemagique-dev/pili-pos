@@ -189,7 +189,7 @@ test('two equal parts: card 7,43, then cash for the other 7,43 rounded to 7,45',
   await toPayment(page)
   await page.locator('.split-btn', { hasText: '2' }).click()
   await expect(page.locator('.part-chip')).toHaveCount(2)
-  await expect(page.locator('.validate-btn')).toContainText('Valider part 1')
+  await expect(page.locator('.validate-btn')).toContainText('Encaisser la part 1')
 
   await page.locator('.card-btn').click()
   await expect(page.locator('.exact-value')).toHaveText('7,43')
@@ -199,7 +199,7 @@ test('two equal parts: card 7,43, then cash for the other 7,43 rounded to 7,45',
   // Cash is back as the method for the last part, rounded.
   await expect(page.locator('.cash-btn')).toHaveClass(/active/u)
   await expect(page.locator('.total-value')).toHaveText('7,45')
-  await expect(page.locator('.validate-btn')).toContainText('Valider part 2')
+  await expect(page.locator('.validate-btn')).toContainText('Encaisser la part 2 · 7,45 €')
 
   await page.locator('.shortcut.exact').click()
   await page.locator('.validate-btn').click()
@@ -224,8 +224,9 @@ test('three parts, the first in cash: the cash part is sent last, as the rest', 
   await expect(page.locator('.change-box')).toContainText('0,05')
   await page.locator('.validate-btn').click()
 
-  // One cash part at most: the others go on card / meal vouchers.
-  await expect(page.locator('.cash-btn')).toBeDisabled()
+  // One cash part at most: cash is no longer offered, the others go on
+  // card / meal vouchers.
+  await expect(page.locator('.cash-btn')).toHaveCount(0)
   await expect(page.locator('.card-btn')).toHaveClass(/active/u)
   await expect(page.locator('.exact-value')).toHaveText('4,95')
   await page.locator('.card-confirm').click()

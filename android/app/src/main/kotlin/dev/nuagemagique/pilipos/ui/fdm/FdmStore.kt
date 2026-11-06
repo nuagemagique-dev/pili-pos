@@ -25,6 +25,7 @@ import uniffi.pos_ffi.FdmSeverity
 import uniffi.pos_ffi.MessageItem
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.SignMessages
+import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -58,6 +59,11 @@ class FdmStore
 
         /** The last reading of the FDM. */
         val state: StateFlow<FdmUiState> = mutableState.asStateFlow()
+
+        private val mutableCheckedAt = MutableStateFlow<Instant?>(null)
+
+        /** When the till last took a reading of the FDM, for the status sheet of its header light (UX audit L2). */
+        val checkedAt: StateFlow<Instant?> = mutableCheckedAt.asStateFlow()
 
         init {
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -122,6 +128,7 @@ class FdmStore
 
         /** Takes the engine's reading of the FDM; it classified it already. */
         private fun apply(health: FdmHealth) {
+            mutableCheckedAt.value = Instant.now()
             mutableState.update {
                 it.copy(
                     connected = health.connected,

@@ -55,6 +55,16 @@ Après 2-3 semaines d'utilisation intensive, le staff développe des automatisme
 
 ---
 
+### 2.4 - Commandes en ligne : refuser avec un motif, droits par rôle (audit O1, L6)
+
+« Refuser » une commande en ligne est définitif (la plateforme et le client sont prévenus), donc il ouvre une confirmation avec les motifs en grosses touches (« Rupture de stock », « Trop de commandes », « Restaurant fermé », « Autre ») et un bouton rouge « Refuser la commande » grisé tant qu'aucun motif n'est choisi : trois touches, jamais par accident. Sur la carte, « Refuser » est à l'autre bout de la rangée d'actions que « Accepter », contour rouge sans remplissage. HubRise n'a pas de champ de motif de refus : le motif reste sur la caisse, il n'est ni envoyé ni signé.
+
+Accepter, refuser, remettre et encaisser demandent les droits d'encaissement. Pour un Apprenti ces boutons sont grisés avec la ligne « Réservé au serveur ou au gérant » au lieu d'échouer avec « Action réservée à un autre profil ». À l'écran, « Serveur » est le rôle interne `cashier` et « Apprenti » le rôle `waiter` (les noms internes ne changent pas). Préparer, « Prête » et « En livraison » restent ouverts à tous.
+
+### 2.5 - Copie et remboursement : pas d'étape vide (audit R1)
+
+Sans tickets par e-mail, l'étape « Papier / E-mail » ne propose rien et ne ferait que répéter le bouton de confirmation : « Copie » (et la réimpression d'un Z) signe donc la copie en papier au premier toucher, sans étape intermédiaire. Avec les tickets par e-mail configurés, l'étape du moyen reste avant la signature. Le remboursement a une seule étape de confirmation, montrée une fois avant de signer : les lignes cochées avec leur quantité, la TVA incluse, le total à rembourser en espèces et le bouton « Confirmer le remboursement » (le bouton de la ligne du ticket reste « Rembourser » ; le choix du moyen s'y ajoute seulement si l'e-mail est configuré).
+
 ## 3. Layout principal - OrderView (écran le plus utilisé)
 
 C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
@@ -84,6 +94,8 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
          ~65% de la largeur                      ~35% de la largeur
 ```
 
+**Pied du panier (audit C4, C3) :** tant que la commande en salle a des lignes pas encore envoyées en cuisine (hors lignes retenues par un service), « Envoyer en cuisine » est le bouton principal Volt avec une pastille « 2 lignes », et PAYER devient un bouton secondaire à contour qui affiche toujours le total. Une fois tout envoyé, PAYER redevient le principal. Pour un Apprenti (sans droit d'encaisser), « Envoyer en cuisine » est toujours le principal. « Changer de table », « Remise » et « Client parti sans payer » ne sont plus dans le pied : ils sont dans le menu « Plus » de l'en-tête du panier.
+
 **Proportions :** menu grid = ~65% de l'écran, cart sidebar = ~35%. Sur 1920px, ça donne ~1250px pour le menu et ~670px pour le cart.
 
 **Grille menu :** 5 colonnes de boutons items (environ 230 × 120 px, au-dessus du minimum de 140 × 100 px). Scrollable verticalement avec inertie tactile.
@@ -104,6 +116,8 @@ C'est l'écran où le staff passe 80% de son temps. Il doit être parfait.
 | Bouton secondaire (Annuler) | 100×48px | 120×52px | 8px gap |
 | Touche NumPad | 80×64px | 96×72px | 4px gap |
 | Ligne order dans cart | pleine largeur × 56px | pleine largeur × 64px | 0 (séparateur 1px) |
+
+**Disposition du pavé numérique :** tous les pavés numériques (PIN, INSZ, montants, prix, quantités, bons cadeaux, dates des rapports, code produit) suivent la disposition d'une calculatrice, 7 8 9 en haut, puis 4 5 6, 1 2 3, et la ligne du bas propre à chaque pavé (C, 0, effacer ; virgule sur la caisse Linux). Les mêmes touches dans le même ordre sur Linux et Android (`ui/e2e/pad-layout.spec.ts`, `PadLayoutAssert.kt`).
 
 **Pourquoi ces tailles :** le standard mobile est 48×48px minimum (Apple HIG / Material Design), mais en POS restaurant avec les mains mouillées/grasses et l'écran à 30-50cm de distance, il faut aller plus grand. Les tests utilisateurs montrent que 60-70px est le sweet spot pour éviter les misclicks sous stress.
 
@@ -182,10 +196,12 @@ Les noms textuels avec code couleur de catégorie sont plus rapides à scanner v
 ### 7.1 - Flow en minimum d'étapes
 
 ```
-[PAYER] → Choix méthode (Cash/Carte) → Montant reçu (si cash) → Appel FDM → Ticket imprimé
+[PAYER] → [Encaisser 47,30 € en espèces] → Appel FDM → Ticket imprimé → retour aux Tables (2 s)
 ```
 
-Maximum 3 taps pour un paiement simple (cash, montant exact) : Payer → Cash → Exact.
+Le montant exact est déjà saisi à l'arrivée (espèces présélectionnées, arrondi de 5 centimes compris) et le bouton principal dit ce qu'il encaisse et comment (« Encaisser 47,30 € en espèces », « … par carte », « … en chèques-repas », « Encaisser la part 2 · 15,77 € »). Un paiement simple (cash, montant exact) fait donc 2 taps : Payer → Encaisser. Une touche du pavé ou un billet rapide remplace le montant. Carte sur terminal : Payer → Carte → Encaisser, puis l'approbation du terminal.
+
+L'écran de fin affiche « OK » et le rendu monnaie en très grand, puis retourne seul aux Tables après 2 s (un tap, ou « Terminer », y retourne tout de suite). Il reste affiché seulement s'il y a quelque chose à lire ou à décider : ticket non imprimé (« Imprimer le ticket »), ticket numérique en attente, FDM non connecté, note d'un bon cadeau.
 
 ### 7.2 - Boutons de paiement
 
@@ -212,7 +228,7 @@ Rendu monnaie: €3.00
 
 ### 7.4 - Split payment
 
-Le système fait les calculs, le staff saisit seulement le nombre de parts. Afficher le solde restant après chaque paiement partiel.
+Le système fait les calculs, le staff saisit seulement le nombre de parts. Afficher le solde restant après chaque paiement partiel : une seule ligne « Reste 12,30 € : » suivie des méthodes encore permises (Espèces, Carte…). Toucher une méthode la sélectionne avec le reste déjà saisi (espèces : exact arrondi), chaque part suivante est donc ce tap puis le bouton principal. Espèces reste présélectionné ; une fois une part payée en espèces, ce bouton disparaît (une seule part en espèces).
 
 ### 7.5 - Arrondi cash
 
@@ -230,10 +246,17 @@ Le statut de connexion FDM doit être visible en permanence dans le header, pas 
 - 🟡 Jaune = warning (buffer > 70%, certificat expire bientôt)
 - 🔴 Rouge = erreur (déconnecté, buffer full, locked) → **bloque les transactions**
 
+Chaque voyant est un vrai bouton (zone de tap de 48 px, le point reste petit) : un tap ouvre une fiche avec le nom de
+l'appareil, son état en toutes lettres, la raison (jamais seulement une infobulle), l'heure de la dernière vérification
+et « Réessayer maintenant », qui relance la vérification de cet appareil seulement. Les lignes de démarrage de l'écran
+de connexion ouvrent la même fiche.
+
 ### 8.2 - Erreurs non-bloquantes vs bloquantes
 
 - **Non-bloquantes** (warnings) : bandeau jaune en haut de l'écran, auto-dismiss après 10 secondes, ne bloque pas le flow.
-- **Bloquantes** (FDM déconnecté, buffer full) : overlay fullscreen, fond semi-transparent, message clair, pas de moyen de contourner. Le POS est inutilisable tant que le problème n'est pas résolu.
+- **Bloquantes** (FDM déconnecté, buffer full) : voile semi-transparent sur les écrans de vente, **sous le header de 64 px** (Tables, Rapports, Config et Verrouiller restent accessibles), message clair, pas de moyen de contourner. Les ventes sont impossibles tant que le problème n'est pas résolu.
+- **Toasts** : en haut au centre, juste sous le header, 560 px au plus, empilés vers le bas, trois au maximum (les plus récents). Le conteneur ne prend jamais un tap : un tap traverse jusqu'à l'écran dessous. Info, succès et avertissement disparaissent seuls ; une **erreur reste jusqu'à ce qu'on la touche** (« Touchez pour fermer »), et c'est le seul élément qui prend le tap.
+- **Verrouillage pour inactivité** : le verrouillage automatique (5 minutes) appartient au moteur. 30 secondes avant, un bandeau ambre sous le header (et sous le bandeau de formation) annonce « Verrouillage dans 30 s · touchez l'écran pour rester connecté » avec un compte à rebours ; le moteur envoie l'événement `idle-lock-warning`, les deux interfaces ne font que compter ce qu'il annonce. Tout toucher compte comme activité et fait disparaître le bandeau. Après le verrouillage, l'écran de connexion garde la ligne « Caisse verrouillée après 5 min d'inactivité » au-dessus des tuiles jusqu'à la prochaine connexion. Une connexion mène directement à Tables.
 
 ### 8.3 - Messages d'erreur
 
@@ -257,6 +280,7 @@ Le mode training doit être **visuellement impossible à confondre** avec le mod
 - Bannière permanente, juste sous l'en-tête : **"MODE FORMATION · Les transactions ne sont PAS enregistrées"**
 - Watermark diagonal semi-transparent "TRAINING" sur tout l'écran
 - Tous les tickets imprimés portent "TRAINING" en haut et "THIS IS NOT A VALID VAT RECEIPT" en bas
+- **Le commutateur est gardé** (audit R4). Dans Settings, un premier toucher arme seulement l'interrupteur (il devient rouge et pose la question « Activer le mode formation ? », ou « Désactiver le mode formation ? »), il se désarme seul après 5 s. Le second toucher dans les 5 s désactive le mode, ou ouvre le PIN du gérant pour l'activer (aide : « Les ventes suivantes ne seront pas comptées. »). Le moteur vérifie ce PIN (`set_training_mode` accepte `operatorPin`, obligatoire pour activer) : une session de gérant laissée ouverte ne suffit pas à lancer des ventes non comptées.
 
 ---
 

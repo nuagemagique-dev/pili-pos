@@ -8,15 +8,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.fdm.FdmUiState
+import dev.nuagemagique.pilipos.ui.state.IdleWarning
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,6 +74,40 @@ class PosScaffoldTest {
             }
         }
         compose.waitForIdle()
+    }
+
+    // ── The idle lock countdown under the header (UX audit L4) ────
+
+    @Test
+    fun theIdleLockBannerSitsUnderTheHeaderAndTheHeaderStaysUsable() {
+        compose.mainClock.autoAdvance = false
+        show(
+            HeaderArea.TABLES,
+            fdm = FdmUiState(),
+            header =
+                HeaderUiState(
+                    area = HeaderArea.TABLES,
+                    userName = "Alice",
+                    roleKey = "role_admin",
+                    isManager = true,
+                    idleWarning = IdleWarning(30_000L, 1L),
+                ),
+        )
+
+        compose.onNodeWithTag("idle_lock_banner").assertIsDisplayed()
+        compose.onNodeWithTag("idle_lock_text").assertTextEquals("Verrouillage dans 30 s · touchez l'écran pour rester connecté")
+        val header = compose.onNodeWithTag("app_header").getUnclippedBoundsInRoot()
+        val banner = compose.onNodeWithTag("idle_lock_banner").getUnclippedBoundsInRoot()
+        assertTrue("the banner starts under the header", banner.top >= header.bottom)
+        compose.onNodeWithTag("header_nav_reports").performClick()
+        assertEquals(listOf("reports"), calls)
+    }
+
+    @Test
+    fun noBannerWithoutAWarning() {
+        show(HeaderArea.TABLES, fdm = FdmUiState())
+
+        compose.onNodeWithTag("idle_lock_banner").assertDoesNotExist()
     }
 
     // ── The FDM veil (PD209) ──────────────────────────────────────

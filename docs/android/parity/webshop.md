@@ -10,7 +10,7 @@ the store.
 
 | Vue | Compose | Commands |
 | --- | --- | --- |
-| ui/src/views/WebshopOrdersView.vue (board, cards, actions, delays, prints, resync) | feature/webshop/WebshopScreen.kt (WebshopRoute, WebshopContent), WebshopCard.kt, WebshopDialogs.kt, WebshopViewModel.kt, WebshopRules.kt, WebshopEntryPoint.kt | `hubrise_sync_catalog` |
+| ui/src/views/WebshopOrdersView.vue, components/WebshopRejectDialog.vue, utils/webshopRights.ts (board, cards, actions, reject reasons, rights, delays, prints, resync) | feature/webshop/WebshopScreen.kt (WebshopRoute, WebshopContent), WebshopCard.kt, WebshopDialogs.kt, WebshopViewModel.kt, WebshopRules.kt, WebshopEntryPoint.kt | `hubrise_sync_catalog` |
 | stores/webshopOrders.ts (list, refetch on events) | ui/state/WebshopOrdersStore.kt (fetchOrders) | `hubrise_list_webshop_orders` |
 | stores/webshopOrders.ts (acceptOrder, rejectOrder) | ui/state/WebshopOrdersStore.kt (acceptOrder, rejectOrder) | `webshop_accept_order` `webshop_reject_order` |
 | stores/webshopOrders.ts (startPreparation, markReady, markOutForDelivery, delayByMinutes) | ui/state/WebshopOrdersStore.kt (patchStatus, delayByMinutes) | `hubrise_patch_order_status` `hubrise_set_confirmed_time` |
@@ -34,10 +34,25 @@ the store.
   column of an order, its primary action per status, the refund only for a manager, the review block, the
   banners and the 5-minute alarm follow the script of the Vue view one to one (`WebshopRules.kt`); the unit tests
   cover the primary action of every status.
-- **Confirmations (added).** Vue refuses an order, and sends a refund, with one tap. Here "Refuser" asks for a
-  confirmation first (the refusal goes to the platform and cannot be undone), and "Rembourser" asks the logged-in
-  manager to confirm the engine's amount; the manager's INSZ is the one sent to `webshop_refund_order`. Without a
-  manager nothing is sent and the warning `webshop_manager_needed` is shown.
+- **Confirmations (added).** "Refuser" asks for a reason and a confirmation first on both UIs (the refusal goes to the
+  platform and cannot be undone), and "Rembourser" asks the logged-in manager to confirm the engine's amount; the
+  manager's INSZ is the one sent to `webshop_refund_order`. Without a manager nothing is sent and the warning
+  `webshop_manager_needed` is shown.
+- **Refuser with a reason (UX audit O1).** The dialog (`WebshopRejectDialog.vue`, `WebshopDialogs.kt` `RejectDialog`,
+  state `WebshopDialog.RejectConfirm(orderId, reason)`) lists four chips (`webshop_reject_reason_*`: out of stock, too
+  many orders, restaurant closed, other); the red `webshop_reject_confirm` button is disabled until one is picked, so
+  the tap count is Refuser, a chip, the red button. HubRise has no reject reason field (`pos-hubrise-types` knows only the
+  status `rejected`; `seller_notes` is a free note, not a reason, and is not used), so `webshop_reject_order` keeps its one argument and the reason
+  stays on the till: it only gates the button. Nothing is signed, a rejected order never is. On the card "Refuser" is
+  the first button of the action row (left of the total), outlined red and never filled, at the other end from the
+  primary action (`WebshopCard.kt` `RejectButton`; Vue `.btn-reject`).
+- **Rights by role (UX audit L6).** Accept, refuse, collect (cash and card), complete and close need the cashier
+  rights (engine `Access::Cashier`). For an Apprenti (role `waiter`; on screen "Serveur" is the role `cashier`,
+  "Apprenti" the role `waiter`) these buttons are shown disabled with the line `webshop_cashier_only` ("Réservé au
+  serveur ou au gérant") above the row instead of failing with `err_forbidden`. Preparing, ready and out for delivery
+  stay enabled (engine `Access::Staff`). Vue reads `auth.canTakePayment` (`utils/webshopRights.ts`), Compose
+  `SessionStore.canTakePayment` (`WebshopRules.cashierNoteNeeded`, `PrimaryAction.needsCashier`); the view model also
+  ignores the taps. The engine still refuses a waiter.
 - **Delay in a dialog.** The +15, +30 and +45 chips of the kitchen cards are behind a "Retarder" button that opens a
   dialog with the three choices (one tap on a choice applies it and closes the dialog). The increments stack on the
   current promised time, as in the store (+60 is two taps on +30).

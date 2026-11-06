@@ -337,7 +337,7 @@ impl Host {
         let e = &self.engine;
         match cmd {
             "logout" => ser(auth::do_logout(e)),
-            "set_training_mode" => ser(settings::do_set_training_mode(e, req_bool(a, "enabled")?)),
+            "set_training_mode" => ser(training_mode(e, a)),
             "work_in" => ser(social::do_work_in(e, req_str(a, "employeeInsz")?).await),
             "work_out" => ser(social::do_work_out(e, req_str(a, "employeeInsz")?).await),
             "end_shift" => {
@@ -495,6 +495,11 @@ fn req_str(args: &Value, key: &str) -> Result<String, String> {
         .and_then(Value::as_str)
         .map(str::to_string)
         .ok_or_else(|| bad_args(&format!("{key} must be a string")))
+}
+
+/// `set_training_mode {enabled, pin?}`: the manager's PIN is needed to turn it on.
+fn training_mode(e: &Engine, a: &Value) -> Result<bool, String> {
+    settings::do_set_training_mode(e, req_bool(a, "enabled")?, opt_str(a, "pin")?)
 }
 
 fn opt_str(args: &Value, key: &str) -> Result<Option<String>, String> {

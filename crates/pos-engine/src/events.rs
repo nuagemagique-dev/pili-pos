@@ -23,6 +23,9 @@ pub enum EngineEvent {
     /// The session was locked (`commands::session`): the UI goes to the
     /// login screen.
     SessionLocked(crate::commands::session::SessionLocked),
+    /// The idle lock is near, or the operator was active again
+    /// (`commands::session`): the UI shows or hides the countdown banner.
+    IdleLockWarning(crate::commands::session::IdleLockWarning),
     /// The clock-in queued by a login was not registered
     /// (`commands::social`): the UI shows the presence toast.
     PresenceFailed(crate::commands::social::PresenceFailed),
@@ -52,6 +55,7 @@ impl EngineEvent {
             EngineEvent::FdmSignMessages(_) => "fdm-sign-messages",
             EngineEvent::FdmStatus(_) => "fdm-status",
             EngineEvent::SessionLocked(_) => "session-locked",
+            EngineEvent::IdleLockWarning(_) => "idle-lock-warning",
             EngineEvent::PresenceFailed(_) => "presence-failed",
             EngineEvent::ScaleProgress(_) => "scale-progress",
             #[cfg(feature = "hubrise")]
@@ -166,6 +170,7 @@ mod tests {
         let event = EngineEvent::SessionLocked(crate::commands::session::SessionLocked {
             reason: crate::commands::session::LockReason::Idle,
             order_error: None,
+            idle_after_ms: Some(300_000),
         });
         assert_eq!(event.topic(), "session-locked");
         let EngineEvent::SessionLocked(payload) = event else {
@@ -173,7 +178,27 @@ mod tests {
         };
         assert_eq!(
             serde_json::to_value(&payload).unwrap(),
-            serde_json::json!({ "reason": "idle", "orderError": null })
+            serde_json::json!({ "reason": "idle", "orderError": null, "idleAfterMs": 300_000 })
+        );
+    }
+
+    #[test]
+    fn the_idle_lock_warning_topic_and_payload() {
+        let event = EngineEvent::IdleLockWarning(crate::commands::session::IdleLockWarning {
+            lock_in_ms: Some(30_000),
+        });
+        assert_eq!(event.topic(), "idle-lock-warning");
+        let EngineEvent::IdleLockWarning(payload) = event else {
+            panic!("an idle lock warning event");
+        };
+        assert_eq!(
+            serde_json::to_value(&payload).unwrap(),
+            serde_json::json!({ "lockInMs": 30_000 })
+        );
+        let over = crate::commands::session::IdleLockWarning { lock_in_ms: None };
+        assert_eq!(
+            serde_json::to_value(&over).unwrap(),
+            serde_json::json!({ "lockInMs": null })
         );
     }
 

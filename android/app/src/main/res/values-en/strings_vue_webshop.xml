@@ -37,6 +37,15 @@
     <string name="webshop_action_out_for_delivery">Out for delivery</string>
     <string name="webshop_action_complete">Complete</string>
     <string name="webshop_action_reject">Reject</string>
+    <string name="webshop_reject_title">Reject the order?</string>
+    <string name="webshop_reject_message">The platform and the customer will be told of the refusal. This cannot be undone.</string>
+    <string name="webshop_reject_reason_label">Reason</string>
+    <string name="webshop_reject_reason_out_of_stock">Out of stock</string>
+    <string name="webshop_reject_reason_too_busy">Too many orders</string>
+    <string name="webshop_reject_reason_closed">Restaurant closed</string>
+    <string name="webshop_reject_reason_other">Other</string>
+    <string name="webshop_reject_confirm">Reject the order</string>
+    <string name="webshop_cashier_only">Reserved for a server or a manager</string>
     <string name="webshop_loading">Loading…</string>
     <string name="webshop_empty">No orders to show.</string>
     <string name="webshop_action_print_kitchen">Kitchen ticket</string>

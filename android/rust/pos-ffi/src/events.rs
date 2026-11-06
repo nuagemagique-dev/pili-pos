@@ -10,7 +10,7 @@ use tokio::sync::broadcast::error::RecvError;
 use crate::convert;
 use crate::error::PosError;
 use crate::records::common::{
-    CallbackEvent, FdmHealth, PresenceFailed, SessionLocked, SignMessages,
+    CallbackEvent, FdmHealth, IdleLockWarning, PresenceFailed, SessionLocked, SignMessages,
 };
 use crate::records::scale::ScaleProgress;
 
@@ -24,6 +24,8 @@ pub enum PosEvent {
     FdmStatus { health: FdmHealth },
     /// Topic `session-locked`: the session was locked, the UI goes to the login screen.
     SessionLocked { locked: SessionLocked },
+    /// Topic `idle-lock-warning`: the idle lock is near, or the operator was active again.
+    IdleLockWarning { warning: IdleLockWarning },
     /// Topic `presence-failed`: the clock-in queued by a login was not registered.
     PresenceFailed { failure: PresenceFailed },
     /// Topic `scale-progress`: where the weighing in progress stands.
@@ -51,6 +53,7 @@ impl PosEvent {
             PosEvent::FdmSignMessages { .. } => "fdm-sign-messages",
             PosEvent::FdmStatus { .. } => "fdm-status",
             PosEvent::SessionLocked { .. } => "session-locked",
+            PosEvent::IdleLockWarning { .. } => "idle-lock-warning",
             PosEvent::PresenceFailed { .. } => "presence-failed",
             PosEvent::ScaleProgress { .. } => "scale-progress",
             PosEvent::WebshopOrderReceived { .. } => "webshop-order-received",
@@ -74,6 +77,9 @@ fn convert_event(event: EngineEvent) -> Result<PosEvent, PosError> {
         },
         EngineEvent::SessionLocked(l) => PosEvent::SessionLocked {
             locked: convert::out(&l)?,
+        },
+        EngineEvent::IdleLockWarning(w) => PosEvent::IdleLockWarning {
+            warning: convert::out(&w)?,
         },
         EngineEvent::PresenceFailed(f) => PosEvent::PresenceFailed {
             failure: convert::out(&f)?,

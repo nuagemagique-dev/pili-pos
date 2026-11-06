@@ -149,13 +149,106 @@ test.describe('Settings View', () => {
     await expect.poll(() => ipcCalls(page, 'deactivate_user')).toEqual([{ insz: '99012345667' }])
   })
 
+  /** Types the manager's PIN in the open PIN dialog. */
+  async function typeManagerPin(page: Page, pin: string) {
+    const dialog = page.locator('.pin-dialog')
+    for (const d of pin) await dialog.getByRole('button', { name: d, exact: true }).click()
+  }
+
+  test('training mode: the first tap only arms the switch, nothing is sent', async ({ page }) => {
+    const toggle = page.getByTestId('training-toggle')
+    await toggle.click()
+    await expect(toggle).toContainText('Activer le mode formation ?')
+    await expect(page.locator('.pin-dialog')).toHaveCount(0)
+    expect(await ipcCalls(page, 'set_training_mode')).toHaveLength(0)
+  })
+
+  test('training mode: the armed switch disarms itself after 5 s', async ({ page }) => {
+    await page.clock.install()
+    await page.reload()
+    const toggle = page.getByTestId('training-toggle')
+    await toggle.click()
+    await expect(toggle).toContainText('Activer le mode formation ?')
+    await page.clock.runFor(4_000)
+    await expect(toggle).toContainText('Activer le mode formation ?')
+    await page.clock.runFor(1_500)
+    await expect(toggle).toContainText('Inactif')
+    // A tap after the delay arms again instead of confirming.
+    await toggle.click()
+    await expect(toggle).toContainText('Activer le mode formation ?')
+    await expect(page.locator('.pin-dialog')).toHaveCount(0)
+  })
+
+  test('training mode on: armed tap, then the manager PIN with its hint, then it is on', async ({
+    page,
+  }) => {
+    await loginAndGoto(page, '/settings')
+    const toggle = page.getByTestId('training-toggle')
+    await toggle.click()
+    await toggle.click()
+    const dialog = page.locator('.pin-dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('.hint')).toHaveText('Les ventes suivantes ne seront pas comptées.')
+    expect(await ipcCalls(page, 'set_training_mode')).toHaveLength(0)
+    await typeManagerPin(page, '4321')
+    await expect(dialog).toHaveCount(0)
+    expect(await ipcCalls(page, 'set_training_mode')).toEqual([
+      { enabled: true, operatorPin: '4321' },
+    ])
+    await expect(toggle).toContainText('Actif')
+  })
+
+  test('training mode on: a wrong PIN stays in the dialog and changes nothing', async ({
+    page,
+  }) => {
+    await loginAndGoto(page, '/settings')
+    await overrideIPC(page, 'set_training_mode', { __reject: 'pin_wrong' })
+    const toggle = page.getByTestId('training-toggle')
+    await toggle.click()
+    await toggle.click()
+    await typeManagerPin(page, '0000')
+    await expect(page.locator('.pin-dialog .error-msg')).toHaveText('PIN incorrect')
+    await expect(toggle).toContainText('Inactif')
+    // Back closes the dialog; the switch is still off and needs arming again.
+    await page.locator('.pin-dialog').getByRole('button', { name: 'Retour' }).click()
+    await expect(page.locator('.pin-dialog')).toHaveCount(0)
+    await expect(toggle).toContainText('Inactif')
+  })
+
+  test('training mode off: the armed second tap is enough, no PIN', async ({ page }) => {
+    await mockTauriIPC(page, {
+      login: () => DEFAULT_USER,
+      list_users: () => [DEFAULT_USER],
+      get_settings: settingsWith({ trainingMode: true }),
+    })
+    await loginAndGoto(page, '/settings')
+    const toggle = page.getByTestId('training-toggle')
+    await expect(toggle).toContainText('Actif')
+    await toggle.click()
+    await expect(toggle).toContainText('Désactiver le mode formation ?')
+    expect(await ipcCalls(page, 'set_training_mode')).toHaveLength(0)
+    await toggle.click()
+    await expect(page.locator('.pin-dialog')).toHaveCount(0)
+    expect(await ipcCalls(page, 'set_training_mode')).toEqual([
+      { enabled: false, operatorPin: null },
+    ])
+    await expect(toggle).toContainText('Inactif')
+  })
+
   test('training mode is refused while an order is open, and says so', async ({ page }) => {
+    await loginAndGoto(page, '/settings')
     await overrideIPC(page, 'set_training_mode', {
       __reject: 'open_orders_training',
     })
-    await page.locator('.toggle').click()
-    await expect(page.locator('.toast')).toContainText('Encaissez ou videz les commandes ouvertes')
-    await expect(page.locator('.toggle')).toContainText('Inactif')
+    const toggle = page.getByTestId('training-toggle')
+    await toggle.click()
+    await toggle.click()
+    await typeManagerPin(page, '4321')
+    // The refusal comes back in the PIN dialog, which stays open for the next try.
+    await expect(page.locator('.pin-dialog .error-msg')).toContainText(
+      'Encaissez ou videz les commandes ouvertes',
+    )
+    await expect(toggle).toContainText('Inactif')
   })
 
   test('shows POS info section', async ({ page }) => {

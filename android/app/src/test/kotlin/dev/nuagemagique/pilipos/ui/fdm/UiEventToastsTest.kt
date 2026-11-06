@@ -77,18 +77,17 @@ class UiEventToastsTest {
         }
 
     @Test
-    fun theToastLastsSixSeconds() =
+    fun theErrorToastStaysUntilItIsTappedWhateverTheDuration() =
         runTest {
             val s = setup()
             s.feed.send(failed("FDM_LOCKED"))
             runCurrent()
 
-            advanceTimeBy(EVENT_TOAST_MS - 1)
+            advanceTimeBy(EVENT_TOAST_MS + 60_000L)
             runCurrent()
-            assertEquals(1, s.rig.toasts.toasts.value.size)
+            val toast = s.rig.toasts.toasts.value.single()
 
-            advanceTimeBy(1)
-            runCurrent()
+            s.rig.toasts.dismiss(toast.id)
             assertTrue(s.rig.toasts.toasts.value.isEmpty())
         }
 
@@ -111,7 +110,7 @@ class UiEventToastsTest {
             coEvery { s.rig.f.engine.login("85010100123", null) } returns user()
             s.rig.session.login("85010100123", null)
 
-            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, "FDM_LOCKED")))
+            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, "FDM_LOCKED", null)))
             runCurrent()
 
             val toast = s.rig.toasts.toasts.value.single()
@@ -126,7 +125,7 @@ class UiEventToastsTest {
             coEvery { s.rig.f.engine.login("85010100123", null) } returns user()
             s.rig.session.login("85010100123", null)
 
-            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null)))
+            s.feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null, null)))
             runCurrent()
 
             assertTrue(s.rig.toasts.toasts.value.isEmpty())

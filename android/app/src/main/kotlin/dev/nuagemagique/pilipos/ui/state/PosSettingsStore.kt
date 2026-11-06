@@ -95,9 +95,15 @@ class PosSettingsStore
             }
         }
 
-        /** `toggleTrainingMode` of the Vue UI: the engine switches, then the new value is shown. A refusal propagates. */
-        suspend fun setTrainingMode(enabled: Boolean) {
-            val now = gateway.call { engine -> engine.setTrainingMode(enabled) }
+        /**
+         * `toggleTrainingMode` of the Vue UI: the engine switches, then the new value is shown. A refusal
+         * propagates. Turning it on needs the manager's own PIN ([operatorPin], checked by the engine).
+         */
+        suspend fun setTrainingMode(
+            enabled: Boolean,
+            operatorPin: String? = null,
+        ) {
+            val now = gateway.call { engine -> engine.setTrainingMode(enabled, operatorPin) }
             mutableSettings.value = mutableSettings.value?.copy(trainingMode = now)
             mutableTraining.value = now
         }

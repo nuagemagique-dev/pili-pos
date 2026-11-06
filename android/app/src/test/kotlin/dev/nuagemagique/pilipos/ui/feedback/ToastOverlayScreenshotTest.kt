@@ -14,7 +14,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Golden of the four toast variants stacked at the bottom right. */
+/** Golden of the toast variants stacked at the top centre, under the header (the newest three). */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-mdpi")
 class ToastOverlayScreenshotTest {
@@ -33,7 +33,7 @@ class ToastOverlayScreenshotTest {
         rule.setContent {
             PiliTheme {
                 Box(Modifier.fillMaxSize().background(PiliTheme.colors.bgPrimary)) {
-                    ToastStack(toasts, onDismiss = {})
+                    ToastStack(toasts, onDismiss = {}, tapToCloseText = "Touchez pour fermer")
                 }
             }
         }

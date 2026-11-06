@@ -29,3 +29,11 @@ const { t } = useI18n()
   letter-spacing: 0.04em;
 }
 </style>
+
+<style>
+/* Above the blocking FDM veil (900) so the banner stays readable. */
+.fdm-blocking .training-banner {
+  position: relative;
+  z-index: 901;
+}
+</style>

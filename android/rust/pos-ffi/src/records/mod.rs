@@ -71,6 +71,7 @@
 //! | `ReceiptLanguage` | `pos_fiscal::ticket::ReceiptLanguage` | common | checkout, close_unpaid, copy_ticket (+5 commands) |
 //! | `RequestedMedium` | `pos_engine::commands::delivery::RequestedMedium` | common | checkout, copy_ticket, refund_checkout (+2 commands) |
 //! | `SessionLocked` | `pos_engine::commands::session::SessionLocked` | common | event session-locked |
+//! | `IdleLockWarning` | `pos_engine::commands::session::IdleLockWarning` | common | event idle-lock-warning |
 //! | `SignMessages` | `pos_fiscal::fdm_client::SignMessages` | common | event fdm-sign-messages |
 //! | `SlipOutcome` | `pos_engine::commands::bar_slip::SlipOutcome` | common | checkout, close_unpaid, leave_order (+10 commands) |
 //! | `TicketDeliveryRequest` | `pos_engine::commands::delivery::TicketDeliveryRequest` | common | checkout, copy_ticket, refund_checkout (+2 commands) |

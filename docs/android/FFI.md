@@ -111,7 +111,8 @@ Not every refusal is an exception. The checkout family reports its refusals insi
 |---|---|---|
 | `fdm-sign-messages` | `FdmSignMessages(messages)` | `SignMessages { mutation, bookingDate?, warnings, informations }` |
 | `fdm-status` | `FdmStatus(health)` | `FdmHealth { connected, answered, severity, code?, mandatory, checkedAt, nextCheckAt? }`; first one right after a session opens (login), then every `fdmPollMs` while the session is open |
-| `session-locked` | `SessionLocked(locked)` | `SessionLocked { reason, orderError? }` (idle timeout, `lockSession`) |
+| `session-locked` | `SessionLocked(locked)` | `SessionLocked { reason, orderError?, idleAfterMs? }` (idle timeout, `lockSession`; `idleAfterMs` is the idle delay that ran out, idle locks only) |
+| `idle-lock-warning` | `IdleLockWarning(warning)` | `IdleLockWarning { lockInMs? }` (30 s before the idle lock; `null` when the operator was active again) |
 | `presence-failed` | `PresenceFailed(failure)` | `PresenceFailed { insz, clockIn, error }` |
 | `webshop-order-received` | `WebshopOrderReceived(event)` | `CallbackEvent` |
 | `webshop-order-updated` | `WebshopOrderUpdated(event)` | `CallbackEvent` |

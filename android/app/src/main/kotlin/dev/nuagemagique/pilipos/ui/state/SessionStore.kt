@@ -15,7 +15,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import uniffi.pos_ffi.IdleLockWarning
 import uniffi.pos_ffi.LockOutcome
+import uniffi.pos_ffi.LockReason
 import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PresenceFailed
 import uniffi.pos_ffi.SessionLocked
@@ -23,11 +25,38 @@ import uniffi.pos_ffi.SocialResult
 import uniffi.pos_ffi.User
 import uniffi.pos_ffi.UserRole
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /** The answer of `end_shift`: whether the clock-out (S event) was registered. */
 typealias EndShiftResult = SocialResult
+
+/**
+ * The idle lock is near (UX audit L4): the engine said the till locks in [lockInMs] milliseconds. [sequence] tells two
+ * warnings with the same time left apart, so the countdown restarts for the second one.
+ */
+data class IdleWarning(
+    val lockInMs: Long,
+    val sequence: Long,
+)
+
+/** Milliseconds in a minute, for the "locked after N min" line. */
+private const val MS_PER_MINUTE = 60_000L
+
+/**
+ * The minutes the login screen names after an idle lock (`Math.max(1, Math.round(ms / 60000))` of `auth.ts`), or null
+ * when the lock was not an idle one or the engine gave no delay.
+ */
+internal fun idleLockedMinutes(
+    reason: LockReason,
+    idleAfterMs: Long?,
+): Int? =
+    if (reason == LockReason.IDLE && idleAfterMs != null && idleAfterMs > 0L) {
+        maxOf(1L, (idleAfterMs + MS_PER_MINUTE / 2) / MS_PER_MINUTE).toInt()
+    } else {
+        null
+    }
 
 /**
  * Who is logged in (port of `ui/src/stores/auth.ts`).
@@ -70,6 +99,19 @@ class SessionStore
         /** The engine locked the session by itself (idle): the user is already cleared, the caller leaves the screen. */
         val sessionLocked: SharedFlow<SessionLocked> = mutableLocked.asSharedFlow()
 
+        private val mutableIdleWarning = MutableStateFlow<IdleWarning?>(null)
+        private val mutableIdleLockedMin = MutableStateFlow<Int?>(null)
+        private val warningSequence = AtomicLong(0)
+
+        /**
+         * The idle lock is near: the countdown banner shows while this is set. The engine owns the lock and says when
+         * to warn (`idle-lock-warning`); it ends the warning when the operator is active again.
+         */
+        val idleWarning: StateFlow<IdleWarning?> = mutableIdleWarning.asStateFlow()
+
+        /** Minutes of inactivity after which the engine last locked the till; the login screen says so until a login. */
+        val idleLockedAfterMin: StateFlow<Int?> = mutableIdleLockedMin.asStateFlow()
+
         init {
             // Subscribed before any call (no replay): UNDISPATCHED registers the collector right here.
             scope.launch(start = CoroutineStart.UNDISPATCHED) {
@@ -77,6 +119,7 @@ class SessionStore
                     when (event) {
                         is PosEvent.PresenceFailed -> mutablePresence.tryEmit(event.failure)
                         is PosEvent.SessionLocked -> onSessionLocked(event.locked)
+                        is PosEvent.IdleLockWarning -> onIdleWarning(event.warning)
                         else -> Unit
                     }
                 }
@@ -154,20 +197,31 @@ class SessionStore
         }
 
         private fun onSessionLocked(locked: SessionLocked) {
+            mutableIdleWarning.value = null
             if (locking.get() || mutableUser.value == null) return
             forget()
+            mutableIdleLockedMin.value = idleLockedMinutes(locked.reason, locked.idleAfterMs)
             mutableLocked.tryEmit(locked)
+        }
+
+        private fun onIdleWarning(warning: IdleLockWarning) {
+            val left = warning.lockInMs
+            mutableIdleWarning.value =
+                if (left == null || mutableUser.value == null) null else IdleWarning(left, warningSequence.incrementAndGet())
         }
 
         /** Keeps [user] as the logged-in operator; a badge login (the engine already opened the session) calls this. */
         internal fun remember(user: User): User {
             mutableUser.value = user
+            mutableIdleLockedMin.value = null
+            mutableIdleWarning.value = null
             mutableManager.value = user.role == UserRole.ADMIN
             mutablePayment.value = user.role == UserRole.ADMIN || user.role == UserRole.CASHIER
             return user
         }
 
         private fun forget() {
+            mutableIdleWarning.value = null
             mutableUser.value = null
             mutableManager.value = false
             mutablePayment.value = false

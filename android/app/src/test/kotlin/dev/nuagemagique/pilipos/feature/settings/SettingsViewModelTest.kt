@@ -12,6 +12,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -202,22 +203,120 @@ class SettingsViewModelTest {
     // ── Training, language, product label ────────────────────────
 
     @Test
-    fun theTrainingSwitchGoesThroughTheEngine() =
+    fun theFirstTapOnTheTrainingSwitchOnlyArmsIt() =
         runTest {
             val r = start()
-            coEvery { r.engine.setTrainingMode(true) } returns true
 
             r.model.toggleTraining()
             runCurrent()
 
-            coVerify(exactly = 1) { r.engine.setTrainingMode(true) }
+            assertTrue(r.state.trainingArmed)
+            assertFalse(r.state.trainingPin)
+            assertFalse(r.state.training)
+            coVerify(exactly = 0) { r.engine.setTrainingMode(any(), any()) }
+        }
+
+    @Test
+    fun theArmedTrainingSwitchDisarmsItselfAfterFiveSeconds() =
+        runTest {
+            val r = start()
+            r.model.toggleTraining()
+            runCurrent()
+
+            advanceTimeBy(TRAINING_ARM_MS - 1)
+            assertTrue(r.state.trainingArmed)
+            advanceTimeBy(2)
+
+            assertFalse(r.state.trainingArmed)
+            // A tap after the delay arms again instead of confirming.
+            r.model.toggleTraining()
+            runCurrent()
+            assertTrue(r.state.trainingArmed)
+            assertFalse(r.state.trainingPin)
+        }
+
+    @Test
+    fun theSecondTapOpensTheManagerPinAndTheEngineGetsItToTurnTrainingOn() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.setTrainingMode(true, "1111") } returns true
+
+            r.model.toggleTraining()
+            r.model.toggleTraining()
+            runCurrent()
+
+            assertFalse(r.state.trainingArmed)
+            assertTrue(r.state.trainingPin)
+            coVerify(exactly = 0) { r.engine.setTrainingMode(any(), any()) }
+
+            r.model.enableTraining("1111")
+            r.model.closeTrainingPin()
+            runCurrent()
+
+            coVerify(exactly = 1) { r.engine.setTrainingMode(true, "1111") }
+            assertTrue(r.state.training)
+            assertFalse(r.state.trainingPin)
+        }
+
+    @Test
+    fun aWrongTrainingPinIsThrownForTheDialogAndTrainingStaysOff() =
+        runTest {
+            val r = start()
+            val refusal = PosException.Coded("pin_wrong", emptyMap())
+            coEvery { r.engine.setTrainingMode(true, "0000") } throws refusal
+            r.model.toggleTraining()
+            r.model.toggleTraining()
+            runCurrent()
+
+            val failure = runCatching { r.model.enableTraining("0000") }.exceptionOrNull()
+
+            assertEquals(refusal, failure)
+            assertFalse(r.state.training)
+            assertTrue(r.state.trainingPin)
+        }
+
+    @Test
+    fun cancellingTheTrainingPinDialogChangesNothingAndNeedsArmingAgain() =
+        runTest {
+            val r = start()
+            r.model.toggleTraining()
+            r.model.toggleTraining()
+            runCurrent()
+
+            r.model.closeTrainingPin()
+            runCurrent()
+
+            assertFalse(r.state.trainingPin)
+            assertFalse(r.state.trainingArmed)
+            assertFalse(r.state.training)
+            coVerify(exactly = 0) { r.engine.setTrainingMode(any(), any()) }
+        }
+
+    @Test
+    fun turningTrainingOffNeedsTheArmedSecondTapOnlyAndNoPin() =
+        runTest {
+            val r = start()
+            coEvery { r.engine.setTrainingMode(true, "1111") } returns true
+            coEvery { r.engine.setTrainingMode(false, null) } returns false
+            r.model.toggleTraining()
+            r.model.toggleTraining()
+            r.model.enableTraining("1111")
+            r.model.closeTrainingPin()
+            runCurrent()
             assertTrue(r.state.training)
 
-            coEvery { r.engine.setTrainingMode(false) } returns false
+            r.model.toggleTraining()
+            runCurrent()
+            assertTrue(r.state.trainingArmed)
+            coVerify(exactly = 0) { r.engine.setTrainingMode(false, null) }
+
             r.model.toggleTraining()
             runCurrent()
 
+            coVerify(exactly = 1) { r.engine.setTrainingMode(false, null) }
             assertFalse(r.state.training)
+            assertFalse(r.state.trainingPin)
+            assertFalse(r.state.trainingArmed)
         }
 
     @Test
@@ -257,12 +356,18 @@ class SettingsViewModelTest {
         runTest {
             val r = start()
             val refusal = PosException.Coded("order_open", emptyMap())
-            coEvery { r.engine.setTrainingMode(true) } throws refusal
-
+            coEvery { r.engine.setTrainingMode(true, "1111") } returns true
+            coEvery { r.engine.setTrainingMode(false, null) } throws refusal
+            r.model.toggleTraining()
+            r.model.toggleTraining()
+            r.model.enableTraining("1111")
+            r.model.closeTrainingPin()
+            runCurrent()
+            r.model.toggleTraining()
             r.model.toggleTraining()
             runCurrent()
 
-            assertFalse(r.state.training)
+            assertTrue(r.state.training)
             assertEquals(ToastVariant.Error, r.env.lastToast().variant)
             assertEquals(r.env.describe(refusal), r.env.lastToast().message)
         }
@@ -784,8 +889,11 @@ class SettingsViewModelTest {
 
             coEvery { r.engine.fdmHealth() } returns health()
             r.env.fdm.load()
-            coEvery { r.engine.setTrainingMode(true) } returns true
+            coEvery { r.engine.setTrainingMode(true, "1111") } returns true
             r.model.toggleTraining()
+            r.model.toggleTraining()
+            r.model.enableTraining("1111")
+            r.model.closeTrainingPin()
             runCurrent()
             assertEquals(PresenceBlock.Training, r.state.presenceBlock)
             r.model.togglePresence(waiter)

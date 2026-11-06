@@ -12,6 +12,7 @@ import { useI18n } from '../i18n'
 import { formatPrice, round5 } from '../utils/format'
 import { useBilingualName } from '../utils/names'
 import { lineNetCents, discountTotalCents } from '../utils/cartAmounts'
+import { DONE_AUTO_RETURN_MS, doneNeedsAttention } from '../utils/checkoutDone'
 import AppHeader from '../components/AppHeader.vue'
 import TicketMediumPicker from '../components/TicketMediumPicker.vue'
 import DeliveryOutcomePanel from '../components/DeliveryOutcomePanel.vue'
@@ -69,7 +70,8 @@ const error = ref<string | null>(null)
 // cannot recompute it, the cart (and so the total) is cleared by then.
 const changeDueCents = ref(0)
 
-// §7.1: cash selected by default (PAYER → Exact → Valider).
+// §7.1: cash selected by default, the exact amount already entered
+// (PAYER → Encaisser).
 const method = ref<Method>('cash')
 const splitCount = ref(1)
 const parts = ref<TakenPart[]>([])
@@ -243,16 +245,13 @@ function lineNotes(line: CartLine): string | null {
 
 // ── Entry ──
 
-/** A new part or method: cash starts empty (tap Exact or an amount),
- * card / meal vouchers start at the amount due, which can be lowered. */
+/** A new part or method starts at the exact amount: the rounded cash
+ * due for cash, the part for card / meal vouchers. The first key (or a
+ * quick amount) replaces it. */
 function prefill() {
-  if (method.value === 'cash') {
-    entry.value = ''
-    fresh.value = false
-  } else {
-    entry.value = dueCents.value > 0 ? toInput(dueCents.value) : ''
-    fresh.value = true
-  }
+  const cents = method.value === 'cash' ? roundedDueCents.value : dueCents.value
+  entry.value = cents > 0 ? toInput(cents) : ''
+  fresh.value = cents > 0
 }
 watch([method, partIndex, splitCount, totalCents], prefill, { immediate: true })
 
@@ -290,6 +289,37 @@ const exactActive = computed(
   () =>
     fresh.value &&
     entryCents.value === (method.value === 'cash' ? roundedDueCents.value : dueCents.value),
+)
+
+/** The amount the primary button collects: the rounded due for cash
+ * (the received amount only decides the change), the typed amount for
+ * card / vouchers. */
+const collectCents = computed(() =>
+  method.value === 'cash' ? roundedDueCents.value : entryCents.value,
+)
+
+/** "Encaisser 47,30 € en espèces", "Encaisser la part 2 · 15,77 €";
+ * "Valider" when every part is taken and the sale only waits to be signed. */
+const validateLabel = computed(() => {
+  if (allPaid.value) return t('validate')
+  const amount = formatPrice(collectCents.value)
+  if (splitCount.value > 1) return t('collect_part', { n: partIndex.value + 1, amount })
+  return t(`collect_${method.value}`, { amount })
+})
+
+/** The received amount, shown under the label only when it differs
+ * from what is due (there is change to give back). */
+const receivedHint = computed(
+  () =>
+    method.value === 'cash' && entryCents.value > 0 && entryCents.value !== roundedDueCents.value,
+)
+
+/** After a part left a rest: the row "Reste 12,30 € :" in front of the
+ * methods still allowed. */
+const showRest = computed(() => parts.value.length > 0 && restCents.value > 0)
+/** One cash part at most: cash is not offered again once taken. */
+const offeredMethods = computed(() =>
+  METHODS.value.filter((m) => !(m === 'cash' && hasCashPart.value)),
 )
 
 function setQuickAmount(n: number) {
@@ -507,9 +537,37 @@ const giftVoucherNotes = computed(() =>
   }),
 )
 
+// The done screen returns to the tables by itself after two seconds,
+// unless something must be read or decided (ticket not printed, digital
+// ticket pending, FDM offline, gift voucher slip note).
+const holdDone = computed(() => doneNeedsAttention(result.value))
+let returnTimer: ReturnType<typeof setTimeout> | undefined
+let leaving = false
+
+function clearReturnTimer() {
+  if (returnTimer !== undefined) clearTimeout(returnTimer)
+  returnTimer = undefined
+}
+
+watch(step, (s) => {
+  clearReturnTimer()
+  if (s === 'done' && !holdDone.value) returnTimer = setTimeout(finish, DONE_AUTO_RETURN_MS)
+})
+onUnmounted(clearReturnTimer)
+
+/** A tap anywhere leaves the done screen, unless it holds something to read. */
+function onDoneTap() {
+  if (!holdDone.value) finish()
+}
+
 function finish() {
+  if (leaving) return
+  leaving = true
+  clearReturnTimer()
   result.value = null
-  router.push({ name: 'order' })
+  // The order is gone: straight to the tables, no detour through the
+  // order screen.
+  void router.push({ name: 'tables' })
 }
 </script>
 
@@ -538,21 +596,25 @@ function finish() {
           </button>
         </div>
         <!-- §7.2: the three methods side by side -->
-        <div class="methods">
-          <button
-            v-for="m in METHODS"
-            :key="m"
-            class="method-btn"
-            :class="[
-              m === 'cash' ? 'cash-btn' : m === 'card' ? 'card-btn' : 'meal-btn',
-              { active: method === m },
-            ]"
-            :disabled="m === 'cash' && hasCashPart"
-            :data-testid="`method-${m}`"
-            @click="selectMethod(m)"
-          >
-            {{ methodLabel(m) }}
-          </button>
+        <div class="methods-row">
+          <span v-if="showRest" class="rest-methods-label" data-testid="rest-methods-label">{{
+            t('rest_methods', { amount: formatPrice(restShownCents) })
+          }}</span>
+          <div class="methods">
+            <button
+              v-for="m in offeredMethods"
+              :key="m"
+              class="method-btn"
+              :class="[
+                m === 'cash' ? 'cash-btn' : m === 'card' ? 'card-btn' : 'meal-btn',
+                { active: method === m },
+              ]"
+              :data-testid="`method-${m}`"
+              @click="selectMethod(m)"
+            >
+              {{ methodLabel(m) }}
+            </button>
+          </div>
         </div>
 
         <!-- §7.4: equal split -->
@@ -660,7 +722,7 @@ function finish() {
             </div>
             <div class="numpad">
               <button
-                v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
+                v-for="d in ['7', '8', '9', '4', '5', '6', '1', '2', '3']"
                 :key="d"
                 class="nk"
                 @click="handleKey(d)"
@@ -791,14 +853,9 @@ function finish() {
               :disabled="!canValidate"
               @click="validate"
             >
-              <span class="validate-label">{{
-                splitCount > 1 ? t('validate_part', { n: partIndex + 1 }) : t('validate')
-              }}</span>
-              <span v-if="method === 'cash' && entry" class="validate-amount">
+              <span class="validate-label">{{ validateLabel }}</span>
+              <span v-if="receivedHint" class="validate-amount">
                 {{ t('received_amount', { amount: formatPrice(entryCents) }) }}
-              </span>
-              <span v-else-if="method !== 'cash' && entryCents > 0" class="validate-amount">
-                {{ formatPrice(entryCents) }} €
               </span>
             </button>
           </div>
@@ -814,18 +871,18 @@ function finish() {
       </div>
     </div>
 
-    <!-- Done -->
-    <div v-else class="status-screen">
+    <!-- Done: leaves by itself after 2 s unless there is something to read -->
+    <div v-else class="status-screen done-screen" data-testid="done-screen" @click="onDoneTap">
       <div class="checkout-center">
         <div class="success-icon">OK</div>
+        <div v-if="changeDueCents > 0" class="receipt-change" data-testid="done-change">
+          <span>{{ t('change') }}</span>
+          <span class="receipt-change-value">{{ formatPrice(changeDueCents) }} €</span>
+        </div>
         <div v-if="result?.ticket" class="receipt-mini">
           <div class="receipt-label">{{ result.ticket.ticket_type_label }}</div>
           <div class="receipt-total">
             {{ formatPrice(Math.round(result.ticket.total * 100)) }} €
-          </div>
-          <div v-if="changeDueCents > 0" class="receipt-change">
-            <span>{{ t('change') }}</span>
-            <span class="receipt-change-value">{{ formatPrice(changeDueCents) }} €</span>
           </div>
           <div v-if="result.ticket.fdm_ref" class="receipt-fdm">
             FDM: {{ result.ticket.fdm_ref.fdmId }}
@@ -844,8 +901,13 @@ function finish() {
           :fiscal-event-id="result?.fiscal_event_id ?? null"
         />
         <div class="done-actions">
-          <button class="act-btn primary" @click="finish">{{ t('finish') }}</button>
+          <button class="act-btn primary" data-testid="done-finish" @click.stop="finish">
+            {{ t('finish') }}
+          </button>
         </div>
+        <p v-if="!holdDone" class="done-hint" data-testid="done-auto-return">
+          {{ t('done_auto_return') }}
+        </p>
       </div>
     </div>
 
@@ -893,7 +955,21 @@ button:active:not(:disabled) {
   overflow-y: auto;
 }
 
+.methods-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.rest-methods-label {
+  flex: none;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent-warning);
+  white-space: nowrap;
+}
 .methods {
+  flex: 1;
+  min-width: 0;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px;
@@ -1440,6 +1516,11 @@ button:active:not(:disabled) {
 }
 
 /* ── Processing / done ── */
+.done-hint {
+  margin: 0;
+  font-size: 17px;
+  color: var(--text-secondary);
+}
 .status-screen {
   flex: 1;
   min-height: 0;

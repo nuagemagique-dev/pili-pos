@@ -2,7 +2,7 @@
 import { formatDate, formatDayTime, formatTime, formatTimestamp } from '../utils/datetime'
 import { useIntegrationsStore } from '../stores/integrations'
 import IntegrationSwitch from '../components/IntegrationSwitch.vue'
-import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
 import { usePosStore, type AppLanguage, type ProductLabel } from '../stores/pos'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
@@ -37,13 +37,42 @@ const toast = useToastStore()
 const fdm = useFdmStore()
 const badge = useBadgeStore()
 
-/** The backend refuses the switch while an order is open. */
+// Training mode is guarded like the Z: the first tap only arms the switch
+// (5 s), the second one turns it off, or opens the manager's PIN to turn it on.
+// The engine refuses the switch while an order is open and checks the PIN.
+const trainingArmed = ref(false)
+const trainingPin = ref(false)
+let trainingDisarm: ReturnType<typeof setTimeout> | undefined
+onUnmounted(() => clearTimeout(trainingDisarm))
+
+function disarmTraining() {
+  clearTimeout(trainingDisarm)
+  trainingArmed.value = false
+}
+
 async function toggleTraining() {
+  if (!trainingArmed.value) {
+    trainingArmed.value = true
+    trainingDisarm = setTimeout(() => {
+      trainingArmed.value = false
+    }, 5000)
+    return
+  }
+  disarmTraining()
+  if (!pos.trainingMode) {
+    trainingPin.value = true
+    return
+  }
   try {
     await pos.toggleTrainingMode()
   } catch (e) {
     toast.show(describeError(e), 'error', 6000)
   }
+}
+
+/** The manager's PIN typed for turning training mode on (a refusal is shown in the dialog). */
+async function enableTraining(pin: string) {
+  await pos.toggleTrainingMode(pin)
 }
 const menu = useMenuStore()
 const delivery = useDeliveryStore()
@@ -359,8 +388,22 @@ onMounted(() => {
         <section class="panel training-panel" :class="{ active: pos.trainingMode }">
           <div class="panel-head">
             <h2>{{ t('training_mode') }}</h2>
-            <button class="toggle" :class="{ on: pos.trainingMode }" @click="toggleTraining">
-              {{ pos.trainingMode ? t('settings_training_on') : t('settings_training_off') }}
+            <button
+              class="toggle"
+              :class="{ on: pos.trainingMode, armed: trainingArmed }"
+              data-testid="training-toggle"
+              @click="toggleTraining"
+            >
+              <template v-if="trainingArmed">
+                {{
+                  pos.trainingMode
+                    ? t('settings_training_confirm_off')
+                    : t('settings_training_confirm_on')
+                }}
+              </template>
+              <template v-else>
+                {{ pos.trainingMode ? t('settings_training_on') : t('settings_training_off') }}
+              </template>
               <span class="track"><span class="thumb"></span></span>
             </button>
           </div>
@@ -703,6 +746,16 @@ onMounted(() => {
     </div>
 
     <PinDialog
+      v-if="trainingPin && auth.currentUser"
+      :insz="auth.currentUser.insz"
+      :user-name="auth.currentUser.name"
+      :hint="t('settings_training_pin_hint')"
+      :verify="enableTraining"
+      @done="trainingPin = false"
+      @cancel="trainingPin = false"
+    />
+
+    <PinDialog
       v-if="confirmSupport && auth.currentUser"
       :insz="auth.currentUser.insz"
       :user-name="auth.currentUser.name"
@@ -876,6 +929,11 @@ onMounted(() => {
 }
 .toggle.on {
   color: var(--text-primary);
+}
+/* Armed: the next tap confirms (same look as the armed Z and deactivate buttons). */
+.toggle.armed {
+  background: var(--accent-danger);
+  color: var(--text-on-accent);
 }
 .toggle:active {
   transform: scale(var(--tap-scale));

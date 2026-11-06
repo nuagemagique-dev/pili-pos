@@ -39,8 +39,9 @@ import uniffi.pos_ffi.RefundableEvent
 
 /**
  * The refund dialog, step by step: the sale to refund (only when the flow starts from the list), the lines to give
- * back with their quantity, the delivery choice with the confirmation (selected lines, VAT summary and the preview
- * total, UI-PD307), the signature in progress, and the result. Test tags: `refund_dialog`, `refund_event_<id>`,
+ * back with their quantity, the one confirmation (selected lines, VAT summary and the preview total, UI-PD307, with
+ * the delivery choice only when e-mail tickets are configured; its button reads "Confirmer le remboursement"),
+ * the signature in progress, and the result. Test tags: `refund_dialog`, `refund_event_<id>`,
  * `refund_line_<id>`, `refund_orig_<id>`, `refund_amount_<id>`, `refund_qty_<id>`, `refund_minus_<id>`,
  * `refund_plus_<id>`, `refund_vat`, `refund_next`, `refund_close`, `refund_back`, `refund_confirm`, `refund_total`,
  * `refund_total_unavailable`, `refund_recap_<id>`, `refund_processing`, `refund_error`, `refund_done`.
@@ -195,7 +196,7 @@ private fun DeliveryStep(
                 modifier = Modifier.width(ActionWidth).testTag("refund_back"),
             )
             PiliButton(
-                text = refundLabel(refund.preview),
+                text = vueText("refund_confirm_final"),
                 onClick = callbacks.tickets.onRefundConfirm,
                 modifier = Modifier.testTag("refund_confirm"),
             )
@@ -241,7 +242,7 @@ private fun Recap(preview: RefundPreview) {
     val cash = preview.cashCents
     if (cash != null) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(uiText(R.string.ui_reports_refund_cash_total), style = t.body.copy(fontWeight = t.weightBold), color = c.textPrimary)
+            Text(vueText("refund_cash_total"), style = t.body.copy(fontWeight = t.weightBold), color = c.textPrimary)
             Text(
                 text = formatEuro(cash),
                 style = t.figure.copy(fontWeight = t.weightBold),

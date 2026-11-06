@@ -20,6 +20,29 @@ rounding, the signature, the ticket delivery); the screen only calls it through 
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt with `DeliveryStore.printMissingOriginal` | `print_missing_original` |
 | stores/delivery.ts | ui/state/DeliveryStore.kt (refreshMailStatus on entering the pay step, request, reset) | `check_mail_status` |
 
+## Quick checkout (UX audit P1, P2, P6)
+
+| Vue | Compose | Commands |
+| --- | --- | --- |
+| CheckoutView.vue (`prefill`, `collectCents`, `validateLabel`, `receivedHint`; strings `collect_*`) | feature/checkout/CheckoutViewModel.kt (`Own.prefilled`), CheckoutState.kt (`collectCents`, `showReceived`), CheckoutPanels.kt (`validateLabel`, `ValidateButton`) | - |
+| CheckoutView.vue (`showRest`, `offeredMethods`, `rest-methods-label`, string `rest_methods`) | CheckoutState.kt (`showRest`, `offeredMethods`), CheckoutPanels.kt (`MethodRow`, tag `checkout_rest_label`) | - |
+| CheckoutView.vue (done step: `holdDone`, `onDoneTap`, `finish`, `done-auto-return`), utils/checkoutDone.ts (`doneNeedsAttention`, `DONE_AUTO_RETURN_MS`) | CheckoutState.kt (`CheckoutDone.needsAttention`), CheckoutViewModel.kt (`scheduleAutoReturn`, `finish`, `DONE_AUTO_RETURN_MS`), CheckoutScreen.kt (`DoneStep`, `ChangeBanner`) | - |
+
+- **P1.** The entry starts at the exact amount of the current part: the rounded cash due for cash (with the "exact X ·
+  arrondi 5 cts" hint on the Exact button), the part for card and meal vouchers. The first key or a quick note replaces
+  it. The primary button names what it collects: "Encaisser 47,30 € en espèces" (also "par carte", "en chèques-repas",
+  "par bon cadeau"), "Encaisser la part 2 · 15,77 €" in a split, "Valider" when every part is taken and the sale only
+  waits to be signed. For cash the amount is the rounded due; "reçu 50,00 €" is shown under the label only when the
+  cash handed over differs from it. Cash is PAYER, then the button: 2 taps.
+- **P2.** The done step shows OK and the change very large. It leaves for the tables by itself after 2 s, or at once
+  on a tap anywhere or "Terminer" (once, whichever comes first). It stays, and only "Terminer" leaves, when the paper
+  ticket was not printed (`needsPaper`), the digital ticket is queued, the FDM was not connected, or a gift voucher
+  slip has a note. A takeaway returns to the tables too. Vue "Terminer" and the auto return go straight to the tables
+  (no detour through the order screen); Android did already.
+- **P6.** After a part leaves a rest, the methods row is led by "Reste 12,30 € :" (the amount of "Reste à payer") and
+  offers the methods still allowed: cash is not offered once a cash part is taken (it used to be disabled). Tapping a
+  method selects it with the rest entered, so the next part is that tap plus the primary button.
+
 ## Display arithmetic (UI-PD306)
 
 No amount is computed in this package; there is no sum, difference, product, quotient or rounding of cents.
@@ -48,8 +71,9 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
 - **Cash part before the last one.** Vue subtracts the parts in the browser. Here a cash part taken earlier is held
   in the previews as an exact amount, so the engine does the subtraction; the sale itself still sends it last
   without amount.
-- **Entry keys.** The pad is the shared `NumPad` (digits, clear, backspace) read as cents like a payment terminal,
+- **Entry keys.** The pad is the shared `NumPad` (calculator layout 7 8 9 / 4 5 6 / 1 2 3, then clear, 0, backspace; digits, clear, backspace) read as cents like a payment terminal,
   not Vue's comma pad: `2 0 0 0` is 20,00. A shortcut or a prefill is replaced by the first key, as Vue's `fresh`.
+  Cash is now prefilled too (P1), so the exact amount is already entered on arrival.
 - **Quick amounts.** They are shown with their cents (`20,00 €`), as they come from `CashDisplay` in cents.
 - **Done screen total.** Vue shows `Math.round(ticket.total * 100)`, a floating point. Here the total is the engine
   order total captured at validation; the change is the one fixed when the cash part was taken.
@@ -62,8 +86,8 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
   the missing original is hidden from it, as in `DeliveryOutcomePanel.vue`.
 - **Refusals.** The engine codes (`payment_invalid`, `payment_exceeds_total`, `payment_incomplete`, and the others)
   go through `ErrorPresenter` and are shown in the footer, back on the pay step with the parts kept.
-- **New order.** The finish button of the done screen goes to the tables (the order is gone); Vue goes to the order
-  route, which bounces to the tables when there is no order.
+- **New order.** The finish button of the done screen goes to the tables (the order is gone), as does Vue since the
+  quick checkout (P2).
 - **Meal-voucher card on the terminal.** `EftPayment.meal_voucher` (the stored brand is Edenred, Pluxee, Monizze or
   Payflip) is kept on the taken part (Vue `TakenPart.mealVoucher`, Compose `TakenPart.mealVoucher`). The part stays
   method `card` toward the engine (same `eft_payment_id` payload) but is named by the meal-voucher label ("Part 1 ·

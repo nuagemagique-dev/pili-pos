@@ -470,6 +470,37 @@ test.describe('Refund flow - ticket delivery', () => {
     await expect(page.locator('.medium-btn.active')).toContainText('Papier')
   })
 
+  test('confirmation: lines, VAT, total and one clear button; no picker without e-mail', async ({
+    page,
+  }) => {
+    await openRefundItems(page)
+    await page.locator('.refund-confirm-btn').click()
+    const recap = page.getByTestId('refund-recap')
+    await expect(recap).toContainText('1 × Maki saumon x8')
+    await expect(recap).toContainText('12,00')
+    // VAT included in the selected lines (6 % of 12,00 = 0,68).
+    await expect(page.locator('.vat-summary')).toContainText('6% 0,68')
+    await expect(page.getByTestId('refund-total')).toHaveText(/12,00/u)
+    await expect(page.locator('.medium-picker')).toHaveCount(0)
+    await expect(page.getByTestId('refund-confirm-final')).toHaveText('Confirmer le remboursement')
+    // Nothing is signed before the confirmation, and it is signed once.
+    expect(await ipcCalls(page, 'refund_checkout')).toHaveLength(0)
+    await page.getByTestId('refund-confirm-final').click()
+    await expect.poll(() => ipcCalls(page, 'refund_checkout')).toHaveLength(1)
+  })
+
+  test('confirmation with e-mail configured keeps the medium picker in the same step', async ({
+    page,
+  }) => {
+    await openRefundItems(page, {
+      check_mail_status: () => ({ configured: true, reachable: true, allowDigitalOnly: false }),
+    })
+    await page.locator('.refund-confirm-btn').click()
+    await expect(page.getByTestId('refund-recap')).toBeVisible()
+    await expect(page.locator('.medium-picker')).toBeVisible()
+    await expect(page.getByTestId('refund-confirm-final')).toHaveText('Confirmer le remboursement')
+  })
+
   test('sends the chosen delivery with refund_checkout', async ({ page }) => {
     await openRefundItems(page, {
       check_mail_status: () => ({ configured: true, reachable: true, allowDigitalOnly: false }),
@@ -579,8 +610,8 @@ test.describe('Copy flow - ticket delivery', () => {
     })
     await loginAndGoto(page, '/reports')
     await page.locator('.z-history-btn').click()
+    // No e-mail configured: the reprint is signed at once, no medium step.
     await page.locator('.reprint-btn').click()
-    await page.getByRole('button', { name: 'Valider' }).click()
     await expect(page.locator('.delivery-msg')).toContainText('a***@b***.be')
   })
 })
@@ -672,18 +703,32 @@ test.describe('Ticket copy (event C) and refund - one list of tickets', () => {
 
   test('copies the chosen ticket, on paper by default', async ({ page }) => {
     await openTicketsTab(page)
+    // Without e-mail tickets there is no medium step: the tap signs the copy.
     await page.locator('.copy-ticket-btn').nth(3).click()
-    await expect(page.locator('.refund-modal h3')).toHaveText('Copie de ticket')
-    await page.getByRole('button', { name: 'Valider' }).click()
     await expect.poll(() => ipcCalls(page, 'copy_ticket')).toHaveLength(1)
+    await expect(page.locator('.medium-picker')).toHaveCount(0)
     const calls = await ipcCalls(page, 'copy_ticket')
     expect(calls[0].fiscalEventId).toBe(38)
     expect(calls[0].employeeInsz).toBe(DEFAULT_USER.insz)
     expect(calls[0].delivery).toBeUndefined()
   })
 
+  test('with e-mail configured the copy keeps its medium step before signing', async ({ page }) => {
+    await openTicketsTab(page, {
+      check_mail_status: () => ({ configured: true, reachable: true, allowDigitalOnly: false }),
+    })
+    await page.locator('.copy-ticket-btn').nth(3).click()
+    await expect(page.locator('.refund-modal h3')).toHaveText('Copie de ticket')
+    await expect(page.locator('.medium-picker')).toBeVisible()
+    expect(await ipcCalls(page, 'copy_ticket')).toHaveLength(0)
+    await page.getByRole('button', { name: 'Valider' }).click()
+    await expect.poll(() => ipcCalls(page, 'copy_ticket')).toHaveLength(1)
+  })
+
   test('back from the copy picker signs nothing', async ({ page }) => {
-    await openTicketsTab(page)
+    await openTicketsTab(page, {
+      check_mail_status: () => ({ configured: true, reachable: true, allowDigitalOnly: false }),
+    })
     await page.locator('.copy-ticket-btn').first().click()
     await page.locator('.refund-modal').getByRole('button', { name: 'Retour' }).click()
     await expect(page.locator('.refund-modal')).toHaveCount(0)
@@ -720,6 +765,7 @@ test.describe('Ticket copy (event C) and refund - one list of tickets', () => {
 
   test('the Z history copy keeps its own title', async ({ page }) => {
     await openTicketsTab(page, {
+      check_mail_status: () => ({ configured: true, reachable: true, allowDigitalOnly: false }),
       list_z_reports: () => [
         {
           id: 1,

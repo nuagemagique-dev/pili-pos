@@ -24,11 +24,18 @@
 //!   the time, and the idle loop of `background.rs` runs [`lock`] with
 //!   [`LockReason::Idle`] when it runs out.
 //!
+//! - **The engine announces the idle lock.** [`IDLE_WARNING_LEAD`] before
+//!   the lock the idle loop emits [`IdleLockWarning`] with the time left
+//!   (`idle-lock-warning`, UX audit L4); the next touch emits it again
+//!   with no time left, which hides the banner. The UIs only count down
+//!   what the engine told them, so the banner cannot drift from the lock.
+//!
 //! The engine knows the active order through [`do_set_active_order`]:
 //! the shell tells it which order the screen shows, and the lock needs
 //! no help from the UI to register it.
 
 use std::sync::Mutex;
+use std::time::Duration;
 
 use tokio::sync::Notify;
 use tokio::sync::futures::Notified;
@@ -74,12 +81,34 @@ pub enum LockReason {
 /// The `session-locked` event: the screen goes to the login screen.
 /// `order_error` is why the active order could not be registered, if
 /// that failed; the lock happened anyway, and the entries stay pending
-/// until the next registration.
+/// until the next registration. `idle_after_ms` is the idle delay that
+/// ran out (set for [`LockReason::Idle`] only): the login screen says
+/// "locked after 5 min of inactivity".
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SessionLocked {
     pub reason: LockReason,
     pub order_error: Option<String>,
+    pub idle_after_ms: Option<u64>,
+}
+
+/// How long before the idle lock the operator is warned.
+pub const IDLE_WARNING_LEAD: Duration = Duration::from_secs(30);
+
+/// The warning lead for an idle delay: [`IDLE_WARNING_LEAD`], at most
+/// half the delay so a short test delay still leaves a quiet start.
+pub fn idle_warning_lead(idle_lock: Duration) -> Duration {
+    IDLE_WARNING_LEAD.min(idle_lock / 2)
+}
+
+/// The `idle-lock-warning` event. `lock_in_ms` is the time left before
+/// the idle lock when the warning starts; `None` says the warning is
+/// over because the operator was active again (the lock itself is
+/// announced by `session-locked`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdleLockWarning {
+    pub lock_in_ms: Option<u64>,
 }
 
 /// What [`do_lock_session`] answers: the same `order_error`.
@@ -281,9 +310,16 @@ pub(crate) async fn lock(state: &AppState, reason: LockReason) -> Result<LockOut
     }
     state.session_rules.set(None)?;
     access::close_session(state)?;
+    let idle_after_ms = match reason {
+        LockReason::Idle => {
+            Some(u64::try_from(state.timers.idle_lock.as_millis()).unwrap_or(u64::MAX))
+        }
+        LockReason::Manual => None,
+    };
     state.events.emit(EngineEvent::SessionLocked(SessionLocked {
         reason,
         order_error: order_error.clone(),
+        idle_after_ms,
     }));
     Ok(LockOutcome { order_error })
 }
@@ -305,6 +341,20 @@ pub async fn do_lock_session(state: &AppState) -> Result<LockOutcome, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_warning_comes_30_seconds_before_the_default_idle_lock() {
+        assert_eq!(
+            idle_warning_lead(Duration::from_secs(300)),
+            Duration::from_secs(30)
+        );
+        // A short delay (tests) warns at its half, never after the lock.
+        assert_eq!(
+            idle_warning_lead(Duration::from_millis(300)),
+            Duration::from_millis(150)
+        );
+        assert_eq!(idle_warning_lead(Duration::ZERO), Duration::ZERO);
+    }
 
     #[test]
     fn clock_ins_come_out_in_arrival_order_and_the_queue_is_taken_once() {

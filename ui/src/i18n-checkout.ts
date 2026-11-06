@@ -30,8 +30,40 @@ export const checkoutMessages: Messages = {
   items_count: { fr: '{n} art.', en: '{n} items', zh: '{n} 件' },
   ticket_medium: { fr: 'Ticket', en: 'Receipt', zh: '小票' },
 
-  // Main action.
-  validate_part: { fr: 'Valider part {n}', en: 'Confirm part {n}', zh: '确认第{n}份' },
+  // Main action: the button says what it collects and how.
+  collect_cash: {
+    fr: 'Encaisser {amount} € en espèces',
+    en: 'Collect {amount} € in cash',
+    zh: '现金收款 {amount} €',
+  },
+  collect_card: {
+    fr: 'Encaisser {amount} € par carte',
+    en: 'Collect {amount} € by card',
+    zh: '刷卡收款 {amount} €',
+  },
+  collect_meal_voucher: {
+    fr: 'Encaisser {amount} € en chèques-repas',
+    en: 'Collect {amount} € in meal vouchers',
+    zh: '餐券收款 {amount} €',
+  },
+  collect_gift_voucher: {
+    fr: 'Encaisser {amount} € par bon cadeau',
+    en: 'Collect {amount} € by gift voucher',
+    zh: '礼品券收款 {amount} €',
+  },
+  collect_part: {
+    fr: 'Encaisser la part {n} · {amount} €',
+    en: 'Collect part {n} · {amount} €',
+    zh: '收取第{n}份 · {amount} €',
+  },
+  // After a part left a rest: the methods that can still pay it.
+  rest_methods: { fr: 'Reste {amount} € :', en: '{amount} € left:', zh: '剩余 {amount} €：' },
+  // Done screen: it returns to the tables by itself.
+  done_auto_return: {
+    fr: 'Retour aux tables · touchez pour continuer',
+    en: 'Back to the tables · tap to continue',
+    zh: '即将返回桌位 · 点击继续',
+  },
   received_amount: { fr: 'reçu {amount} €', en: 'received {amount} €', zh: '收到 {amount} €' },
 
   // Linked card payment terminal (EFT): the waiting overlay, locked card

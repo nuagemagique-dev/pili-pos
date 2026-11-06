@@ -44,11 +44,11 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 
 | Vue | Compose | Commands |
 | --- | --- | --- |
-| components/NumPad.vue | ui/components/NumPad.kt (NumPad) | - |
+| components/NumPad.vue | ui/components/NumPad.kt (NumPad) | - (calculator layout 7 8 9 / 4 5 6 / 1 2 3 / C 0 backspace, same on both UIs, UX audit C10) |
 | components/PinDialog.vue | ui/components/PinPad.kt (PinPadState, PinPad, PinDialog) | - |
 | dialog frames | ui/components/PiliDialog.kt (PiliDialog, ConfirmDialog) | - |
 | components/PriceDialog.vue | ui/components/AmountDialog.kt | - |
-| stores/toast.ts and components/ToastStack.vue | ui/feedback/ToastStore.kt, ToastOverlay.kt | - |
+| stores/toast.ts and components/ToastStack.vue (top centre under the header, error stays until tapped, three at most) | ui/feedback/ToastStore.kt, ToastOverlay.kt (ToastStack, ToastOverlay) | - |
 | utils/errorMessages.ts callers | ui/feedback/ErrorPresenter.kt | - |
 | QR images | ui/components/QrCode.kt (QrCanvas, QrMatrices, QrCode) | - |
 | stores/pos.ts | ui/state/PosSettingsStore.kt | `get_settings` `set_training_mode` |
@@ -67,6 +67,7 @@ Run A (P5) and the P5b ui-common pieces (FDM, scaffold, delivery, webshop orders
 | utils/format.ts | ui/format/Money.kt | - |
 | utils/datetime.ts | ui/format/PosDateTime.kt | - |
 | components/VatSummary.vue and the line amount of components/OrderLineItem.vue | ui/format/CartAmounts.kt, ui/components/VatSummary.kt | - |
+| components/IdleLockBanner.vue, stores/auth.ts (idle warning), App.vue (`idle-lock-warning` listener) | ui/components/IdleLockBanner.kt, ui/state/SessionStore.kt (`idleWarning`, `idleLockedAfterMin`) | - |
 | components/TrainingBanner.vue and the App.vue watermark | ui/components/TrainingBanner.kt, TrainingWatermarkOverlay | - |
 | components/ConfigProblemsBanner.vue | ui/components/ConfigProblemsBanner.kt | - |
 | components/AppHeader.vue, PiliLogo.vue, OnlineOrdersNavButton.vue | ui/scaffold/AppHeader.kt (AppHeader, PiliLogo), PosScaffold.kt, HeaderViewModel.kt | `set_pin` |

@@ -31,7 +31,7 @@ use pos_db::queries::orders::NewOrderLine;
 use pos_engine::background::run_idle_lock;
 use pos_engine::commands::access::open_session;
 use pos_engine::commands::session::{
-    LockReason, SessionLocked, do_set_active_order, do_user_activity,
+    IdleLockWarning, LockReason, SessionLocked, do_set_active_order, do_user_activity,
 };
 use pos_engine::state::AppState;
 use pos_engine::{EngineEvent, EventSink};
@@ -47,12 +47,16 @@ const DEADLINE: Duration = Duration::from_secs(15);
 struct Recorder {
     topics: Mutex<Vec<String>>,
     locked: Mutex<Vec<SessionLocked>>,
+    warnings: Mutex<Vec<IdleLockWarning>>,
 }
 
 impl EventSink for Recorder {
     fn emit(&self, event: EngineEvent) {
         if let EngineEvent::SessionLocked(p) = &event {
             self.locked.lock().unwrap().push(p.clone());
+        }
+        if let EngineEvent::IdleLockWarning(w) = &event {
+            self.warnings.lock().unwrap().push(w.clone());
         }
         self.topics.lock().unwrap().push(event.topic().to_string());
     }
@@ -61,6 +65,10 @@ impl EventSink for Recorder {
 impl Recorder {
     fn locked(&self) -> Vec<SessionLocked> {
         self.locked.lock().unwrap().clone()
+    }
+
+    fn warnings(&self) -> Vec<IdleLockWarning> {
+        self.warnings.lock().unwrap().clone()
     }
 
     fn topics(&self) -> Vec<String> {
@@ -78,6 +86,20 @@ struct Idle {
 }
 
 impl Idle {
+    async fn wait_for_warnings(&self, count: usize) {
+        let waited = tokio::time::timeout(DEADLINE, async {
+            while self.recorder.warnings().len() < count {
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await;
+        assert!(
+            waited.is_ok(),
+            "{count} warning(s) expected, got {:?}",
+            self.recorder.warnings()
+        );
+    }
+
     async fn wait_for_locks(&self, count: usize) {
         let waited = tokio::time::timeout(DEADLINE, async {
             while self.recorder.locked().len() < count {
@@ -224,7 +246,9 @@ async fn idle_lock_locks_an_unattended_session_once_with_its_order_registered() 
         idle.recorder.locked(),
         vec![SessionLocked {
             reason: LockReason::Idle,
-            order_error: None
+            order_error: None,
+            // The idle delay that ran out, for the login screen's line.
+            idle_after_ms: Some(300),
         }]
     );
     // The P was signed while the session was still open: in the
@@ -238,7 +262,22 @@ async fn idle_lock_locks_an_unattended_session_once_with_its_order_registered() 
     tokio::time::sleep(QUIET).await;
     assert_eq!(idle.recorder.locked().len(), 1);
     assert_eq!(idle.sign_orders().await, 1);
-    assert_eq!(idle.recorder.topics(), vec!["session-locked".to_string()]);
+    // The warning came first, once, with a time left inside the lead;
+    // the lock event supersedes it (no "over" event).
+    assert_eq!(
+        idle.recorder.topics(),
+        vec![
+            "idle-lock-warning".to_string(),
+            "session-locked".to_string()
+        ]
+    );
+    let warnings = idle.recorder.warnings();
+    assert_eq!(warnings.len(), 1);
+    let left = warnings[0].lock_in_ms.expect("time left");
+    assert!(
+        (1..=150).contains(&left),
+        "the warning starts within the half-timeout lead: {left} ms"
+    );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -368,4 +407,78 @@ async fn idle_user_activity_needs_no_session() {
     let app = TestApp::new().await;
     app.logout();
     do_user_activity(&app.state).expect("activity without a session is not an error");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn idle_lock_warns_before_the_lock_and_a_touch_cancels_the_warning() {
+    let app = TestApp::new().await;
+    let idle = start(app, Arc::new(Recorder::default()));
+
+    // The warning comes first, with the time left before the lock.
+    idle.wait_for_warnings(1).await;
+    let first = idle.recorder.warnings()[0].clone();
+    let left = first.lock_in_ms.expect("a warning carries the time left");
+    assert!(
+        (1..=150).contains(&left),
+        "the time left is within the lead: {left} ms"
+    );
+    assert!(idle.session_open(), "the warning is not the lock");
+    assert_eq!(idle.recorder.locked().len(), 0);
+
+    // The operator touches the screen: the warning is over, the lock
+    // is pushed back by a full timeout.
+    do_user_activity(&idle.state).unwrap();
+    let touched = Instant::now();
+    idle.wait_for_warnings(2).await;
+    assert_eq!(
+        idle.recorder.warnings()[1],
+        IdleLockWarning { lock_in_ms: None }
+    );
+    assert!(idle.session_open(), "a touch keeps the session");
+    assert_eq!(idle.recorder.locked().len(), 0);
+
+    // Left alone again: warned once more, then locked a full timeout
+    // after the touch.
+    idle.wait_for_locks(1).await;
+    assert!(touched.elapsed() >= TIMEOUT, "locked before a full timeout");
+    let warnings = idle.recorder.warnings();
+    assert_eq!(warnings.len(), 3, "warn, over, warn again: {warnings:?}");
+    assert!(warnings[2].lock_in_ms.is_some());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn idle_lock_says_nothing_while_the_operator_stays_active() {
+    let app = TestApp::new().await;
+    let idle = start(app, Arc::new(Recorder::default()));
+
+    // Activity every 50 ms, well inside the 150 ms quiet start.
+    let busy_until = Instant::now() + QUIET;
+    while Instant::now() < busy_until {
+        do_user_activity(&idle.state).unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+    }
+    assert!(
+        idle.recorder.warnings().is_empty(),
+        "no warning while active: {:?}",
+        idle.recorder.warnings()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn idle_lock_warning_is_withdrawn_when_the_session_ends() {
+    let app = TestApp::new().await;
+    let idle = start(app, Arc::new(Recorder::default()));
+    idle.wait_for_warnings(1).await;
+
+    // The operator logs out during the countdown, then something
+    // touches the clock: the UI is told the warning is over.
+    pos_engine::commands::access::close_session(&idle.state).unwrap();
+    do_user_activity(&idle.state).unwrap();
+    idle.wait_for_warnings(2).await;
+    assert_eq!(
+        idle.recorder.warnings()[1],
+        IdleLockWarning { lock_in_ms: None }
+    );
+    tokio::time::sleep(QUIET).await;
+    assert!(idle.recorder.locked().is_empty(), "nobody left to lock");
 }

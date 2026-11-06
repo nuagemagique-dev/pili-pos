@@ -106,6 +106,58 @@ class WebshopRulesTest {
     }
 
     @Test
+    fun theActionsThatSignOrHandOverNeedTheCashierRights() {
+        val needs = PrimaryAction.entries.filter { it.needsCashier }.toSet()
+
+        assertEquals(
+            setOf(
+                PrimaryAction.ACCEPT,
+                PrimaryAction.COLLECT_CASH,
+                PrimaryAction.COMPLETE,
+                PrimaryAction.CLOSE_CANCELLED,
+                PrimaryAction.REFUND,
+            ),
+            needs,
+        )
+    }
+
+    @Test
+    fun anApprenticeGetsTheNoteOnlyWhenACardHasAButtonItMayNotUse() {
+        val new = webshopOrder(1)
+        val review = webshopOrder(2, state = webshopState(2, "pending", resolution = "review", attention = listOf(Attention.NoItems)))
+        val kitchen = webshopOrder(3, hubrise = "accepted", fiscal = "signed_n")
+        val readyUnpaid = webshopOrder(4, hubrise = "awaiting_collection", fiscal = "signed_p")
+        val readyPrepaid = webshopOrder(5, hubrise = "awaiting_collection", fiscal = "signed_n")
+        val done = webshopOrder(6, hubrise = "completed", fiscal = "signed_n")
+
+        // Accept and reject, reject alone on an order to check, collect, complete: all need the cashier rights.
+        assertTrue(WebshopRules.cashierNoteNeeded(new, isManager = false, canTakePayment = false))
+        assertTrue(WebshopRules.cashierNoteNeeded(review, isManager = false, canTakePayment = false))
+        assertTrue(WebshopRules.cashierNoteNeeded(readyUnpaid, isManager = false, canTakePayment = false))
+        assertTrue(WebshopRules.cashierNoteNeeded(readyPrepaid, isManager = false, canTakePayment = false))
+        // Preparing and a finished order need nothing.
+        assertFalse(WebshopRules.cashierNoteNeeded(kitchen, isManager = false, canTakePayment = false))
+        assertFalse(WebshopRules.cashierNoteNeeded(done, isManager = false, canTakePayment = false))
+        // A server or a manager never sees it.
+        listOf(new, review, kitchen, readyUnpaid, readyPrepaid, done).forEach {
+            assertFalse(WebshopRules.cashierNoteNeeded(it, isManager = true, canTakePayment = true))
+        }
+    }
+
+    @Test
+    fun theFourRejectReasonsHaveTheirVueKeysInOrder() {
+        assertEquals(
+            listOf(
+                "webshop_reject_reason_out_of_stock",
+                "webshop_reject_reason_too_busy",
+                "webshop_reject_reason_closed",
+                "webshop_reject_reason_other",
+            ),
+            RejectReason.entries.map { it.labelKey },
+        )
+    }
+
+    @Test
     fun theRefundIsOfferedToAManagerOnlyAndTheCloseToEveryone() {
         val refund = webshopOrder(1, hubrise = "cancelled", fiscal = "refund_pending")
         val close = webshopOrder(2, hubrise = "cancelled", fiscal = "cancel_pending")

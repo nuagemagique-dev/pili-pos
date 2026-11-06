@@ -25,7 +25,8 @@ use pos_engine::commands::order::{
 };
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::session::{
-    LockReason as EngineLockReason, SessionLocked as EngineSessionLocked,
+    IdleLockWarning as EngineIdleLockWarning, LockReason as EngineLockReason,
+    SessionLocked as EngineSessionLocked,
 };
 use pos_engine::commands::social::PresenceFailed as EnginePresenceFailed;
 use pos_engine::commands::tables::do_sign_table_order;
@@ -662,15 +663,22 @@ fn health_session_and_presence_payloads_convert() {
     let locked = EngineSessionLocked {
         reason: EngineLockReason::Idle,
         order_error: Some("fdm_unavailable".into()),
+        idle_after_ms: Some(300_000),
     };
     let record: ffi::SessionLocked = both_ways(&locked);
+    assert_eq!(record.idle_after_ms, Some(300_000));
     assert_eq!(record.reason, ffi::LockReason::Idle);
     assert_eq!(record.order_error.as_deref(), Some("fdm_unavailable"));
     let record: ffi::SessionLocked = both_ways(&EngineSessionLocked {
         reason: EngineLockReason::Manual,
         order_error: None,
+        idle_after_ms: None,
     });
-    assert!(record.order_error.is_none());
+    assert!(record.order_error.is_none() && record.idle_after_ms.is_none());
+    let record: ffi::IdleLockWarning = both_ways(&EngineIdleLockWarning {
+        lock_in_ms: Some(30_000),
+    });
+    assert_eq!(record.lock_in_ms, Some(30_000));
 
     let failed = EnginePresenceFailed {
         insz: "12345678958".into(),

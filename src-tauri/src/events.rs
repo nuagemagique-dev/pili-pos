@@ -49,6 +49,7 @@ impl EventSink for TauriEventSink {
             EngineEvent::FdmSignMessages(messages) => handle.emit(topic, messages),
             EngineEvent::FdmStatus(health) => handle.emit(topic, health),
             EngineEvent::SessionLocked(e) => handle.emit(topic, e),
+            EngineEvent::IdleLockWarning(e) => handle.emit(topic, e),
             EngineEvent::PresenceFailed(e) => handle.emit(topic, e),
             EngineEvent::ScaleProgress(e) => handle.emit(topic, e),
             EngineEvent::WebshopOrderReceived(e)

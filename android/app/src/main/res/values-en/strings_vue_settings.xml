@@ -3,6 +3,9 @@
 <resources>
     <string name="settings_training_on">On</string>
     <string name="settings_training_off">Off</string>
+    <string name="settings_training_confirm_on">Turn training mode on?</string>
+    <string name="settings_training_confirm_off">Turn training mode off?</string>
+    <string name="settings_training_pin_hint">The following sales will not be counted.</string>
     <string name="settings_training_effect">Purple background, banner and watermark on every screen. Tickets are marked TRAINING.</string>
     <string name="settings_lang_name_fr">Français</string>
     <string name="settings_lang_name_zh">中文</string>

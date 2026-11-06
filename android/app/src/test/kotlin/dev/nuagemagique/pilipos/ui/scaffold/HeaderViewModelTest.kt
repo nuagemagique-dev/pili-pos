@@ -10,6 +10,7 @@ import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
+import dev.nuagemagique.pilipos.ui.state.EventFeed
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -31,9 +32,11 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.CreateOrderInput
+import uniffi.pos_ffi.IdleLockWarning
 import uniffi.pos_ffi.LeaveReason
 import uniffi.pos_ffi.LockOutcome
 import uniffi.pos_ffi.OrderType
+import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
 import uniffi.pos_ffi.SlipOutcome
 
@@ -91,6 +94,25 @@ class HeaderViewModelTest {
             assertEquals("Bob", r.state.userName)
             assertEquals("role_cashier", r.state.roleKey)
             assertFalse(r.state.isManager)
+        }
+
+    @Test
+    fun theIdleLockWarningOfTheEngineReachesTheHeaderStateAndGoesWhenItEnds() =
+        runTest {
+            val f = fixture()
+            val feed = EventFeed(f)
+            val r = start(f, HeaderArea.TABLES)
+            r.login(admin)
+            runCurrent()
+            assertNull(r.state.idleWarning)
+
+            feed.send(PosEvent.IdleLockWarning(IdleLockWarning(30_000L)))
+            runCurrent()
+            assertEquals(30_000L, r.state.idleWarning?.lockInMs)
+
+            feed.send(PosEvent.IdleLockWarning(IdleLockWarning(null)))
+            runCurrent()
+            assertNull(r.state.idleWarning)
         }
 
     @Test
@@ -181,7 +203,7 @@ class HeaderViewModelTest {
         }
 
     @Test
-    fun theRefusalToastLastsSixSeconds() =
+    fun theRefusalToastStaysUntilItIsTapped() =
         runTest {
             val f = fixture()
             val r = start(f, HeaderArea.CHECKOUT)
@@ -193,11 +215,10 @@ class HeaderViewModelTest {
             runCurrent()
             assertEquals(1, r.toasts.toasts.value.size)
 
-            testScheduler.advanceTimeBy(REGISTER_FAILED_TOAST_MS - 1)
+            testScheduler.advanceTimeBy(REGISTER_FAILED_TOAST_MS + 60_000L)
             runCurrent()
             assertEquals(1, r.toasts.toasts.value.size)
-            testScheduler.advanceTimeBy(2)
-            runCurrent()
+            r.toasts.dismiss(r.lastToast().id)
             assertEquals(0, r.toasts.toasts.value.size)
         }
 

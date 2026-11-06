@@ -157,6 +157,20 @@ class WebshopScreenshotTest {
     }
 
     @Test
+    fun rejectConfirmation() {
+        capture(state.copy(dialog = WebshopDialog.RejectConfirm(2L, RejectReason.TOO_BUSY)), "webshop_reject")
+    }
+
+    @Test
+    fun apprenticeBoard() {
+        capture(
+            state.copy(isManager = false, canTakePayment = false),
+            "webshop_apprentice",
+            header.copy(userName = "Wendy", roleKey = "role_waiter", isManager = false),
+        )
+    }
+
+    @Test
     fun empty() {
         capture(WebshopUiState(signedIn = true, hubriseVisible = true, now = NOW), "webshop_empty")
     }

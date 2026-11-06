@@ -116,6 +116,10 @@ internal data class SettingsUiState(
     val presenceBusy: String? = null,
     /** The INSZ whose deactivate button is armed (second tap needed), or null. */
     val confirmDeactivate: String? = null,
+    /** The training switch is armed: the next tap within 5 s confirms (`trainingArmed`). */
+    val trainingArmed: Boolean = false,
+    /** The manager's PIN dialog for turning training mode on is open (`trainingPin`). */
+    val trainingPin: Boolean = false,
     val form: NewEmployeeForm = NewEmployeeForm(),
     val pin: SettingsPinFlow? = null,
     /** The last ticket deliveries, newest first as the engine answers; the times are engine strings. */

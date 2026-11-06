@@ -48,8 +48,13 @@ export const useFdmStore = defineStore('fdm', () => {
    * the blocking veil; null when it did not say. */
   const nextCheckAt = ref<number | null>(null)
 
+  /** When the UI last took a reading of the FDM (ms since epoch), for the
+   * status sheet of the header light; null before the first one. */
+  const checkedAt = ref<number | null>(null)
+
   /** Take the engine's reading of the FDM; it classified it already. */
   function apply(h: ipc.FdmHealth) {
+    checkedAt.value = Date.now()
     connected.value = h.connected
     severity.value = h.severity
     lastError.value = h.code
@@ -152,6 +157,7 @@ export const useFdmStore = defineStore('fdm', () => {
     severity,
     mandatory,
     nextCheckAt,
+    checkedAt,
     apply,
     listenStatus,
     checkNow,

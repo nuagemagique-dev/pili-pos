@@ -70,4 +70,46 @@ class ToastStoreTest {
             advanceTimeBy(3001L)
             assertTrue(store.toasts.value.isEmpty())
         }
+
+    @Test
+    fun anErrorToastNeverExpiresWhateverItsTtl() =
+        runTest {
+            val store = store()
+            val error = store.show("boom", ToastVariant.Error, ttlMs = 1000L)
+            store.show("ok", ToastVariant.Info, ttlMs = 1000L)
+            advanceTimeBy(60_000L)
+            assertEquals(listOf("boom"), store.toasts.value.map { it.message })
+            store.dismiss(error)
+            assertTrue(store.toasts.value.isEmpty())
+        }
+
+    @Test
+    fun theWarningAndSuccessToastsStillExpire() =
+        runTest {
+            val store = store()
+            store.show("w", ToastVariant.Warning, ttlMs = 2000L)
+            store.show("s", ToastVariant.Success, ttlMs = 2000L)
+            advanceTimeBy(2001L)
+            assertTrue(store.toasts.value.isEmpty())
+        }
+
+    @Test
+    fun pickVisibleKeepsTheNewestErrorsFirstThenTheNewestOthersInArrivalOrder() {
+        fun t(
+            id: Long,
+            variant: ToastVariant,
+        ) = Toast(id, "t$id", variant)
+        val all =
+            listOf(
+                t(1, ToastVariant.Error),
+                t(2, ToastVariant.Info),
+                t(3, ToastVariant.Error),
+                t(4, ToastVariant.Info),
+                t(5, ToastVariant.Error),
+                t(6, ToastVariant.Error),
+            )
+        assertEquals(listOf(3L, 5L, 6L), pickVisibleToasts(all).map { it.id })
+        assertEquals(listOf(1L, 3L, 4L), pickVisibleToasts(all.take(4)).map { it.id })
+        assertTrue(pickVisibleToasts(emptyList()).isEmpty())
+    }
 }

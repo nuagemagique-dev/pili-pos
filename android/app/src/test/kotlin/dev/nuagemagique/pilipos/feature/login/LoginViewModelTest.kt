@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import dev.nuagemagique.pilipos.engine.EngineFixture
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.scaffold.PRINTER_POLL_MS
+import dev.nuagemagique.pilipos.ui.state.EventFeed
 import io.mockk.coEvery
 import io.mockk.coVerify
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +29,10 @@ import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import uniffi.pos_ffi.FdmSeverity
+import uniffi.pos_ffi.LockReason
+import uniffi.pos_ffi.PosEvent
 import uniffi.pos_ffi.PosException
+import uniffi.pos_ffi.SessionLocked
 import uniffi.pos_ffi.UserRole
 
 private const val SLOW_TERMINAL_MS = 45_000L
@@ -52,6 +56,27 @@ class LoginViewModelTest {
         f: EngineFixture,
         open: Boolean = true,
     ): LoginRig = startLogin(f, context, open)
+
+    // ── The line after an idle lock (UX audit L4) ─────────────────
+
+    @Test
+    fun anIdleLockOfTheEngineMakesTheScreenSayWhyUntilSomeoneLogsIn() =
+        runTest {
+            val f = fixture()
+            val feed = EventFeed(f)
+            val r = start(f)
+            assertNull(r.state.idleLockedAfterMin)
+            coEvery { f.engine.login(ADMIN_INSZ, "1234") } returns admin
+            r.session.login(ADMIN_INSZ, "1234")
+
+            feed.send(PosEvent.SessionLocked(SessionLocked(LockReason.IDLE, null, 300_000L)))
+            runCurrent()
+            assertEquals(5, r.state.idleLockedAfterMin)
+
+            r.session.login(ADMIN_INSZ, "1234")
+            runCurrent()
+            assertNull(r.state.idleLockedAfterMin)
+        }
 
     // ── Loading ───────────────────────────────────────────────────
 
@@ -393,5 +418,60 @@ class LoginViewModelTest {
             coEvery { g.engine.hubriseGetConnectionStatus() } throws PosException.Coded("boom", emptyMap())
             val none = start(g).state.checks.single { it.id == CheckId.Hubrise }
             assertEquals(StartupCheck(CheckId.Hubrise, CheckState.None, "check_not_connected"), none)
+        }
+
+    // ── Status sheet (L2) ─────────────────────────────────────────
+
+    @Test
+    fun aTapOnACheckOpensItsSheetAndTheFirstRunStampsTheTime() =
+        runTest {
+            val f = fixture()
+            val r = start(f)
+            assertNull(r.state.deviceSheet)
+            assertTrue(r.state.checks.all { r.state.checkedAt[it.id] != null })
+
+            r.model.openDevice(CheckId.Ticket)
+            assertEquals(CheckId.Ticket, r.state.deviceSheet)
+            r.model.closeDevice()
+            assertNull(r.state.deviceSheet)
+        }
+
+    @Test
+    fun retryRunsOnlyThatDevicesCheckAgain() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.checkPrinter() } returns false
+            val r = start(f)
+            assertEquals(CheckState.Err, r.state.checks.single { it.id == CheckId.Ticket }.state)
+            coVerify(exactly = 1) { f.engine.checkPrinter() }
+            coVerify(exactly = 1) { f.engine.checkKitchenPrinter() }
+            coVerify(exactly = 1) { f.engine.checkMailStatus() }
+
+            coEvery { f.engine.checkPrinter() } returns true
+            r.model.openDevice(CheckId.Ticket)
+            r.model.retryDevice()
+            advanceUntilIdle()
+
+            assertEquals(CheckState.Ok, r.state.checks.single { it.id == CheckId.Ticket }.state)
+            assertFalse(r.state.deviceBusy)
+            coVerify(exactly = 2) { f.engine.checkPrinter() }
+            coVerify(exactly = 1) { f.engine.checkKitchenPrinter() }
+            coVerify(exactly = 1) { f.engine.checkMailStatus() }
+            // The order of the rows is kept.
+            assertEquals(listOf(CheckId.Fdm, CheckId.Ticket, CheckId.Kitchen, CheckId.Mail), r.state.checks.map { it.id })
+        }
+
+    @Test
+    fun theFdmRetryKeepsTheCodeOfTheReading() =
+        runTest {
+            val f = fixture()
+            coEvery { f.engine.fdmCheckNow() } returns fdmHealth(FdmSeverity.BLOCKING)
+            val r = start(f)
+            coEvery { f.engine.fdmCheckNow() } returns fdmHealth(FdmSeverity.INFO)
+            r.model.openDevice(CheckId.Fdm)
+            r.model.retryDevice()
+            advanceUntilIdle()
+            assertEquals(CheckState.Ok, r.state.checks.first().state)
+            coVerify(exactly = 2) { f.engine.fdmCheckNow() }
         }
 }

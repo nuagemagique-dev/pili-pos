@@ -251,14 +251,18 @@ impl PosEngine {
         convert::out(&settings)
     }
 
-    /// Switch the training mode; returns the new value.
+    /// Switch the training mode; returns the new value. Turning it on needs the manager's PIN.
     #[expect(
         clippy::fn_params_excessive_bools,
         reason = "UniFFI export: the argument is part of the Kotlin API"
     )]
-    pub async fn set_training_mode(&self, enabled: bool) -> Result<bool, PosError> {
+    pub async fn set_training_mode(
+        &self,
+        enabled: bool,
+        operator_pin: Option<String>,
+    ) -> Result<bool, PosError> {
         self.blocking(move |state| {
-            pos_engine::commands::settings::do_set_training_mode(state, enabled)
+            pos_engine::commands::settings::do_set_training_mode(state, enabled, operator_pin)
         })
         .await
     }

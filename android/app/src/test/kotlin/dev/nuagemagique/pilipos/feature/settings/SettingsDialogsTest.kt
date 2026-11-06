@@ -35,6 +35,8 @@ class SettingsDialogsTest {
             describeError = { "err:${it.message}" },
             onDone = { calls += "done" },
             onCancel = { calls += "cancel" },
+            onTrainingPin = { calls += "training:$it" },
+            onTrainingPinClose = { calls += "trainingClose" },
         )
 
     private val deactivate =
@@ -65,6 +67,27 @@ class SettingsDialogsTest {
 
         compose.onNodeWithTag("settings_pin_dialog").assertDoesNotExist()
         compose.onNodeWithTag("settings_deactivate_dialog").assertDoesNotExist()
+    }
+
+    @Test
+    fun theTrainingPinDialogShowsItsHintAndSendsTheFourthDigit() {
+        show(managerState().copy(trainingPin = true))
+
+        compose.onNodeWithTag("settings_training_pin_dialog").assertIsDisplayed()
+        compose.onNodeWithText("Les ventes suivantes ne seront pas comptées.", substring = true).assertIsDisplayed()
+
+        typePin("1111")
+
+        assertEquals(listOf("training:1111", "trainingClose"), calls)
+    }
+
+    @Test
+    fun cancellingTheTrainingPinDialogClosesItWithoutAPin() {
+        show(managerState().copy(trainingPin = true))
+
+        compose.onNodeWithText("Retour").performClick()
+
+        assertEquals(listOf("trainingClose"), calls)
     }
 
     @Test

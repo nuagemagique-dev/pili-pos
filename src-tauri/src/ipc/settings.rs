@@ -10,6 +10,10 @@ pub fn get_settings(state: State<'_, Managed>) -> Result<PosSettings, String> {
 }
 
 #[tauri::command(async)]
-pub fn set_training_mode(state: State<'_, Managed>, enabled: bool) -> Result<bool, String> {
-    pos_engine::commands::settings::do_set_training_mode(state.inner(), enabled)
+pub fn set_training_mode(
+    state: State<'_, Managed>,
+    enabled: bool,
+    operator_pin: Option<String>,
+) -> Result<bool, String> {
+    pos_engine::commands::settings::do_set_training_mode(state.inner(), enabled, operator_pin)
 }

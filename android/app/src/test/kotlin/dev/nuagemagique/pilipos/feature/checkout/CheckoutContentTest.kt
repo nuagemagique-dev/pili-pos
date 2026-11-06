@@ -14,6 +14,7 @@ import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.components.AmountEntryState
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.assertCalculatorLayout
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -159,7 +160,7 @@ class CheckoutContentTest {
     fun cashCannotBePickedAgainAfterACashPart() {
         show(base.copy(method = PaymentMethod.CARD, taken = listOf(TakenPart(PaymentMethod.CASH, 500L, 0L))))
 
-        compose.onNodeWithTag("checkout_method_cash").assertIsNotEnabled()
+        compose.onNodeWithTag("checkout_method_cash").assertDoesNotExist()
         compose.onNodeWithTag("checkout_method_card").assertIsEnabled()
         text("checkout_cash_taken").assertIsDisplayed()
     }
@@ -230,6 +231,13 @@ class CheckoutContentTest {
     }
 
     @Test
+    fun thePadIsLaidOutLikeACalculator() {
+        show(base)
+
+        compose.assertCalculatorLayout()
+    }
+
+    @Test
     fun thePadAndTheShortcutsReportTheirTaps() {
         show(base)
         compose.onNodeWithTag("numpad_key_5").performClick()
@@ -266,7 +274,8 @@ class CheckoutContentTest {
         text("checkout_exact_amount").assertTextEquals("11,52 €")
         text("checkout_change").assertDoesNotExist()
         text("checkout_entry").assertTextEquals("11,52")
-        text("checkout_validate_amount").assertTextEquals("11,52 €")
+        text("checkout_validate_label").assertTextEquals("Encaisser 11,52 € par carte")
+        text("checkout_validate_amount").assertDoesNotExist()
         text("checkout_too_high").assertDoesNotExist()
     }
 
@@ -343,7 +352,7 @@ class CheckoutContentTest {
     fun validateReportsTheTapAndNamesThePartInASplit() {
         show(base.copy(entry = AmountEntryState("2000"), splitCount = 2, taken = listOf(TakenPart(PaymentMethod.CARD, 500L, 0L))))
 
-        compose.onNodeWithTag("checkout_validate").assertTextContains("Valider part 2", substring = true)
+        text("checkout_validate_label").assertTextEquals("Encaisser la part 2 · 11,50 €")
         compose.onNodeWithTag("checkout_validate").performClick()
         assertEquals(listOf("validate"), calls)
     }

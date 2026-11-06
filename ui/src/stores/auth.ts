@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { listen } from '@tauri-apps/api/event'
 import type { User } from '../types'
 import * as ipc from '../api/ipc'
@@ -10,6 +10,28 @@ import { describeError } from '../utils/errorMessages'
 export const useAuthStore = defineStore('auth', () => {
   const currentUser = ref<User | null>(null)
   const error = ref<string | null>(null)
+
+  /** When the engine will lock the idle session (ms since epoch), while
+   * its warning is showing; null otherwise (UX audit L4). */
+  const idleLockAt = ref<number | null>(null)
+
+  /** Minutes of inactivity after which the engine last locked the till
+   * by itself; shown on the login screen until someone logs in. */
+  const idleLockedAfterMin = ref<number | null>(null)
+
+  // A login ends the "locked after N min" line; so does any new session.
+  watch(currentUser, (user) => {
+    if (user) {
+      idleLockedAfterMin.value = null
+      idleLockAt.value = null
+    }
+  })
+
+  /** Hide the countdown at once: the operator touched the screen, which
+   * the engine hears too. */
+  function dismissIdleWarning() {
+    idleLockAt.value = null
+  }
 
   async function loginWithInsz(insz: string, pin?: string) {
     error.value = null
@@ -67,9 +89,28 @@ export const useAuthStore = defineStore('auth', () => {
     if (sessionLockedListened) return
     sessionLockedListened = true
     await listen<ipc.SessionLocked>('session-locked', (event) => {
+      idleLockAt.value = null
       if (locking || !currentUser.value) return
       currentUser.value = null
+      const { reason, idleAfterMs } = event.payload
+      idleLockedAfterMin.value =
+        reason === 'idle' && typeof idleAfterMs === 'number' && idleAfterMs > 0
+          ? Math.max(1, Math.round(idleAfterMs / 60_000))
+          : null
       onLocked(event.payload)
+    })
+  }
+
+  let idleWarningListened = false
+
+  /** The engine warns shortly before the idle lock, and says when the
+   * operator was active again. Call once at start-up. */
+  async function listenIdleLockWarning() {
+    if (idleWarningListened) return
+    idleWarningListened = true
+    await listen<ipc.IdleLockWarning>('idle-lock-warning', (event) => {
+      const { lockInMs } = event.payload
+      idleLockAt.value = lockInMs === null || !currentUser.value ? null : Date.now() + lockInMs
     })
   }
 
@@ -118,6 +159,10 @@ export const useAuthStore = defineStore('auth', () => {
   return {
     currentUser,
     error,
+    idleLockAt,
+    idleLockedAfterMin,
+    dismissIdleWarning,
+    listenIdleLockWarning,
     loginWithInsz,
     loginWithNewPin,
     lock,

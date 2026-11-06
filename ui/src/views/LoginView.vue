@@ -15,6 +15,9 @@ import { describeError, errorCode } from '../utils/errorMessages'
 import { formatTimestamp, formatTime } from '../utils/datetime'
 import PinDialog from '../components/PinDialog.vue'
 import PiliLogo from '../components/PiliLogo.vue'
+import DeviceStatusSheet from '../components/DeviceStatusSheet.vue'
+import { translateFdmError } from '../utils/fdmMessages'
+import { stateWordKey, type DeviceStatus, type Light } from '../utils/deviceStatus'
 
 const router = useRouter()
 const integrations = useIntegrationsStore()
@@ -112,15 +115,126 @@ async function loadShifts() {
 }
 
 // ── Start-up checks (§2.3, §8.1): the devices, before the users ──
-interface Check {
-  key: string
-  label: string
-  state: 'ok' | 'warn' | 'err' | 'none'
+interface Check extends DeviceStatus {
+  /** The answer shown on the row ("connecté", "injoignable"...). */
   text: string
-  /** Why a device is not reachable (tooltip). */
+  /** Why a device is not reachable (tooltip, and the sheet's reason). */
   detail?: string
 }
 const checks = ref<Check[]>([])
+
+/** A row, stamped with the time of the check (the sheet shows it). */
+function row(c: Omit<Check, 'checkedAt'>): Check {
+  return { ...c, checkedAt: Date.now() }
+}
+
+/** Reason in words for a device that only answers yes or no. */
+function plainReason(state: Light, errKey: string): string {
+  if (state === 'ok') return t('status_reason_ok')
+  if (state === 'none') return t('status_reason_none')
+  return t(errKey)
+}
+
+async function probeFdm(): Promise<Check> {
+  await fdm.checkNow()
+  const state: Light =
+    fdm.severity === 'blocking' ? 'err' : fdm.severity === 'warning' ? 'warn' : 'ok'
+  return row({
+    key: 'fdm',
+    name: 'FDM',
+    state,
+    text:
+      state === 'err'
+        ? t('check_offline')
+        : state === 'warn'
+          ? t('check_warning')
+          : t('check_connected'),
+    reason:
+      translateFdmError(fdm.lastError) ??
+      (state === 'ok' ? t('status_reason_ok') : t('status_reason_fdm_offline')),
+  })
+}
+
+async function probePrinter(
+  key: string,
+  labelKey: string,
+  ask: () => Promise<boolean | null>,
+): Promise<Check> {
+  const answer = await ask().catch(() => null)
+  const state: Light = answer === null ? 'none' : answer ? 'ok' : 'err'
+  return row({
+    key,
+    name: t(labelKey),
+    state,
+    text:
+      answer === null
+        ? t('check_not_configured')
+        : answer
+          ? t('check_ready')
+          : t('check_unreachable'),
+    reason: plainReason(state, 'status_reason_printer_err'),
+  })
+}
+
+// Informative like the printers: a terminal that does not answer never blocks the login.
+async function probeTerminal(): Promise<Check | null> {
+  const terminal = await ipc.checkPaymentTerminal().catch(() => null)
+  if (!terminal?.configured) return null
+  const state: Light = terminal.busy ? 'warn' : terminal.connected ? 'ok' : 'err'
+  const text = terminal.busy
+    ? t('check_payment_busy')
+    : terminal.connected
+      ? t('check_connected')
+      : t('check_unreachable')
+  return row({
+    key: 'terminal',
+    name: t('check_payment_terminal'),
+    state,
+    text,
+    detail: terminal.detail ?? undefined,
+    reason:
+      state === 'ok' ? t('status_reason_ok') : [text, terminal.detail].filter(Boolean).join(': '),
+  })
+}
+
+async function probeHubrise(): Promise<Check | null> {
+  if (!integrations.hubriseEnabled) return null
+  const hub = await ipc.hubriseGetConnectionStatus().catch(() => null)
+  const state: Light = hub === null ? 'none' : hub.connected ? 'ok' : 'warn'
+  return row({
+    key: 'hubrise',
+    name: 'HubRise',
+    state,
+    text: hub?.connected ? t('check_connected') : t('check_not_connected'),
+    reason: plainReason(state, 'status_reason_hubrise_warn'),
+  })
+}
+
+async function probeMail(): Promise<Check> {
+  const mail = await ipc.checkMailStatus().catch(() => null)
+  const state: Light = mail?.configured ? (mail.reachable ? 'ok' : 'warn') : 'none'
+  return row({
+    key: 'mail',
+    name: t('check_email'),
+    state,
+    text: mail?.configured
+      ? mail.reachable
+        ? t('check_reachable')
+        : t('check_unreachable')
+      : t('check_not_configured'),
+    reason: plainReason(state, 'status_reason_mail_warn'),
+  })
+}
+
+/** The start-up probes in display order; one may answer null (no row). */
+const probes: [string, () => Promise<Check | null>][] = [
+  ['fdm', probeFdm],
+  ['ticket', () => probePrinter('ticket', 'check_ticket_printer', ipc.checkPrinter)],
+  ['kitchen', () => probePrinter('kitchen', 'check_kitchen_printer', ipc.checkKitchenPrinter)],
+  ['terminal', probeTerminal],
+  ['hubrise', probeHubrise],
+  ['mail', probeMail],
+]
 
 // One run at a time: a slow device (the payment terminal waits for its
 // answer) must not be probed again by the next tick.
@@ -138,85 +252,34 @@ async function runChecks() {
 
 async function probeDevices() {
   const list: Check[] = []
-
-  await fdm.checkNow()
-  list.push({
-    key: 'fdm',
-    label: 'FDM',
-    state: fdm.severity === 'blocking' ? 'err' : fdm.severity === 'warning' ? 'warn' : 'ok',
-    text:
-      fdm.severity === 'blocking'
-        ? t('check_offline')
-        : fdm.severity === 'warning'
-          ? t('check_warning')
-          : t('check_connected'),
-  })
-
-  const printer = await ipc.checkPrinter().catch(() => null)
-  list.push({
-    key: 'ticket',
-    label: t('check_ticket_printer'),
-    state: printer === null ? 'none' : printer ? 'ok' : 'err',
-    text:
-      printer === null
-        ? t('check_not_configured')
-        : printer
-          ? t('check_ready')
-          : t('check_unreachable'),
-  })
-
-  const kitchen = await ipc.checkKitchenPrinter().catch(() => null)
-  list.push({
-    key: 'kitchen',
-    label: t('check_kitchen_printer'),
-    state: kitchen === null ? 'none' : kitchen ? 'ok' : 'err',
-    text:
-      kitchen === null
-        ? t('check_not_configured')
-        : kitchen
-          ? t('check_ready')
-          : t('check_unreachable'),
-  })
-
-  // Informative like the printers: a terminal that does not answer never blocks the login.
-  const terminal = await ipc.checkPaymentTerminal().catch(() => null)
-  if (terminal?.configured) {
-    list.push({
-      key: 'terminal',
-      label: t('check_payment_terminal'),
-      state: terminal.busy ? 'warn' : terminal.connected ? 'ok' : 'err',
-      text: terminal.busy
-        ? t('check_payment_busy')
-        : terminal.connected
-          ? t('check_connected')
-          : t('check_unreachable'),
-      detail: terminal.detail ?? undefined,
-    })
+  for (const [, probe] of probes) {
+    const c = await probe()
+    if (c) list.push(c)
   }
-
-  if (integrations.hubriseEnabled) {
-    const hub = await ipc.hubriseGetConnectionStatus().catch(() => null)
-    list.push({
-      key: 'hubrise',
-      label: 'HubRise',
-      state: hub === null ? 'none' : hub.connected ? 'ok' : 'warn',
-      text: hub?.connected ? t('check_connected') : t('check_not_connected'),
-    })
-  }
-
-  const mail = await ipc.checkMailStatus().catch(() => null)
-  list.push({
-    key: 'mail',
-    label: t('check_email'),
-    state: mail?.configured ? (mail.reachable ? 'ok' : 'warn') : 'none',
-    text: mail?.configured
-      ? mail.reachable
-        ? t('check_reachable')
-        : t('check_unreachable')
-      : t('check_not_configured'),
-  })
-
   checks.value = list
+}
+
+// ── The status sheet (L2): a tap on a row ──────────────────────────
+const openKey = ref<string | null>(null)
+const retrying = ref(false)
+const sheetDevice = computed(() => checks.value.find((c) => c.key === openKey.value) ?? null)
+
+/** "Réessayer maintenant": run that device's check again, only. */
+async function retryOpen() {
+  const key = openKey.value
+  const probe = probes.find(([k]) => k === key)?.[1]
+  if (key === null || !probe || retrying.value) return
+  retrying.value = true
+  try {
+    const fresh = await probe()
+    checks.value = checks.value.map((c) => (c.key === key && fresh ? fresh : c))
+  } finally {
+    retrying.value = false
+  }
+}
+
+function checkAria(c: Check): string {
+  return t('status_light_aria', { name: c.name, state: t(stateWordKey(c.state)) })
 }
 
 const footerPlace = computed(() =>
@@ -398,11 +461,21 @@ async function submitInsz() {
       </div>
       <div class="checks">
         <div class="checks-label">{{ t('check_title') }}</div>
-        <div v-for="c in checks" :key="c.key" class="check" :class="c.state" :title="c.detail">
+        <button
+          v-for="c in checks"
+          :key="c.key"
+          type="button"
+          class="check"
+          :class="c.state"
+          :title="c.detail"
+          :aria-label="checkAria(c)"
+          :data-testid="`check-${c.key}`"
+          @click="openKey = c.key"
+        >
           <span class="dot" />
-          <span class="check-label">{{ c.label }}</span>
+          <span class="check-label">{{ c.name }}</span>
           <span class="check-text">{{ c.text }}</span>
-        </div>
+        </button>
         <div class="brand-footer">
           <span>{{ footerPlace }}</span>
           <span>{{ t('by_nuage_magique') }}</span>
@@ -417,6 +490,14 @@ async function submitInsz() {
     <section class="people">
       <div class="people-main">
         <h1 class="title">{{ t('who_are_you') }}</h1>
+        <p
+          v-if="auth.idleLockedAfterMin !== null"
+          class="idle-notice"
+          role="status"
+          data-testid="idle-locked-notice"
+        >
+          {{ t('idle_locked_notice', { min: auth.idleLockedAfterMin }) }}
+        </p>
         <p v-if="error" class="error-msg shake">{{ error }}</p>
 
         <div v-if="!showNumpad && savedUsers.length > 0" class="user-grid">
@@ -458,7 +539,7 @@ async function submitInsz() {
 
           <div class="numpad">
             <button
-              v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
+              v-for="d in ['7', '8', '9', '4', '5', '6', '1', '2', '3']"
               :key="d"
               class="nk"
               @click="handleKey(d)"
@@ -504,7 +585,7 @@ async function submitInsz() {
 
           <div class="numpad">
             <button
-              v-for="d in ['1', '2', '3', '4', '5', '6', '7', '8', '9']"
+              v-for="d in ['7', '8', '9', '4', '5', '6', '1', '2', '3']"
               :key="d"
               class="nk"
               @click="handlePinKey(d)"
@@ -556,6 +637,14 @@ async function submitInsz() {
       first-login
       @done="onFirstPinDone"
       @cancel="firstPinUser = null"
+    />
+
+    <DeviceStatusSheet
+      v-if="sheetDevice"
+      :device="sheetDevice"
+      :busy="retrying"
+      @retry="retryOpen"
+      @close="openKey = null"
     />
   </div>
 </template>
@@ -612,11 +701,15 @@ async function submitInsz() {
   color: var(--text-secondary);
 }
 .check {
+  width: 100%;
+  text-align: left;
+  color: inherit;
+  /* A real button: the row is 44 px, the hit area grows to 48 px. */
+  min-height: 48px;
   display: grid;
   grid-template-columns: 24px 1fr auto;
   gap: 12px;
   align-items: center;
-  height: 44px;
   border-bottom: 1px solid var(--border);
   font-family: var(--font-mono);
   font-size: 18px;
@@ -690,6 +783,17 @@ async function submitInsz() {
 .title {
   font-size: 40px;
   font-weight: var(--font-weight-heavy);
+}
+
+/* Why the till is locked: amber, the colour of "waiting", not an error. */
+.idle-notice {
+  align-self: flex-start;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent-warning);
+  color: var(--accent-warning);
+  font-size: 18px;
+  font-weight: var(--font-weight-bold);
 }
 
 .error-msg {

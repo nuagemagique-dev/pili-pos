@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.nav.AppNavigator
+import dev.nuagemagique.pilipos.ui.components.IdleLockBanner
 import dev.nuagemagique.pilipos.ui.components.PinDialog
 import dev.nuagemagique.pilipos.ui.components.PinMode
 import dev.nuagemagique.pilipos.ui.components.PinPadTexts
@@ -38,7 +39,7 @@ import java.time.Instant
 private const val CLOCK_TICK_MS = 10_000L
 
 /**
- * The frame of every staff screen: the header, the training banner under it and the [content], with the FDM
+ * The frame of every staff screen: the header, the training banner and the idle lock countdown under it and the [content], with the FDM
  * blocking veil over the content of the sales screens (PD209: Reports, Settings and the online orders stay
  * reachable) and the [overlay] slot above everything for the dialogs of the screen (PD214).
  *
@@ -61,6 +62,8 @@ fun PosScaffold(
     val training by entry.settings().trainingMode.collectAsState()
     val eft by entry.eft().overlay.collectAsState()
     val lights = remember(entry) { DeviceLights(GatewayLightProbe(entry.gateway())) }
+    val sheet = remember { DeviceSheetState() }
+    val fdmCheckedAt by entry.fdm().checkedAt.collectAsState()
     val scope = rememberCoroutineScope()
     LaunchedEffect(model) {
         model.effects.collect {
@@ -70,23 +73,7 @@ fun PosScaffold(
             }
         }
     }
-    val actions =
-        HeaderActions(
-            onTables = model::goTables,
-            onNewTakeaway = model::newTakeaway,
-            onOnlineOrders = model::goOnlineOrders,
-            onReports = model::goReports,
-            onSettings = model::goSettings,
-            onLock = model::lock,
-            onOpenPin = model::openPin,
-            pin =
-                HeaderPinActions(
-                    onSubmit = model::submitPin,
-                    describeError = model::describeError,
-                    onDone = model::closePin,
-                    onCancel = model::closePin,
-                ),
-        )
+    val actions = headerActions(model)
     PosUiRoot {
         PosScaffoldContent(
             header = header,
@@ -96,16 +83,48 @@ fun PosScaffold(
             training = training,
             clock = rememberClockText(),
             modifier = modifier,
-            lights = { StatusLights(fdm, lights, header.hubriseVisible, eftPhase = eft.phase) },
+            lights = {
+                StatusLights(fdm, lights, header.hubriseVisible, eftPhase = eft.phase, onOpenDevice = { sheet.openKey = it })
+            },
+            deviceSheet = {
+                DeviceStatusSheetHost(
+                    sheet = sheet,
+                    fdm = fdm,
+                    fdmCheckedAt = fdmCheckedAt,
+                    lights = lights,
+                    hubriseVisible = header.hubriseVisible,
+                    onCheckFdm = { scope.launch { entry.fdm().checkNow() } },
+                )
+            },
             overlay = overlay,
             content = content,
         )
     }
 }
 
+/** What the header's buttons do, all through [model]. */
+private fun headerActions(model: HeaderViewModel): HeaderActions =
+    HeaderActions(
+        onTables = model::goTables,
+        onNewTakeaway = model::newTakeaway,
+        onOnlineOrders = model::goOnlineOrders,
+        onReports = model::goReports,
+        onSettings = model::goSettings,
+        onLock = model::lock,
+        onOpenPin = model::openPin,
+        pin =
+            HeaderPinActions(
+                onSubmit = model::submitPin,
+                describeError = model::describeError,
+                onDone = model::closePin,
+                onCancel = model::closePin,
+            ),
+    )
+
 /**
  * The stateless scaffold: [PosScaffold] with its state and actions given. The veil is drawn over [content] when
- * `header.area.isSales` is true and [fdm] is blocking; the own-PIN dialog and then [overlay] come above the header.
+ * `header.area.isSales` is true and [fdm] is blocking; the own-PIN dialog, the [deviceSheet] of a status light and then
+ * [overlay] come above the header.
  * Test tags: `scaffold_content` (the box over which the veil lies).
  */
 @Composable
@@ -119,6 +138,7 @@ internal fun PosScaffoldContent(
     clock: String,
     modifier: Modifier = Modifier,
     lights: @Composable () -> Unit = {},
+    deviceSheet: @Composable BoxScope.() -> Unit = {},
     overlay: @Composable BoxScope.() -> Unit = {},
     content: @Composable () -> Unit,
 ) {
@@ -126,12 +146,14 @@ internal fun PosScaffoldContent(
         Column(Modifier.fillMaxSize()) {
             AppHeader(header, actions, clock, lights = lights)
             if (training) TrainingBanner()
+            header.idleWarning?.let { IdleLockBanner(it) }
             Box(Modifier.weight(1f).fillMaxSize().testTag("scaffold_content")) {
                 content()
                 if (header.area.isSales) FdmBlockingVeil(fdm, onCheckNow = onCheckFdm)
             }
         }
         if (header.pinOpen) OwnPinDialog(header.userName, actions.pin)
+        deviceSheet()
         overlay()
     }
 }

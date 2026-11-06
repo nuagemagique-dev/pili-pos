@@ -7,6 +7,8 @@ import dev.nuagemagique.pilipos.nav.SettingsEntry
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +31,9 @@ private const val DELIVERIES_LIMIT: Long = 50L
 
 /** Lifetime of the toast that reports a refused training switch, in milliseconds (6000 in `SettingsView.vue`). */
 private const val TRAINING_TOAST_MS: Long = 6000L
+
+/** How long the armed training switch waits for its second tap, in milliseconds (5000 in `SettingsView.vue`). */
+internal const val TRAINING_ARM_MS: Long = 5000L
 
 /** Lifetime of the toast of a refused presence registration, in milliseconds (6000 in `SettingsView.vue`). */
 private const val PRESENCE_TOAST_MS: Long = 6000L
@@ -83,6 +88,7 @@ internal class SettingsViewModel(
     private val delivery = entry.delivery()
     private val badges = entry.badges()
     private val own = MutableStateFlow(SettingsUiState())
+    private var trainingDisarm: Job? = null
 
     /** The badge half of the screen: reader panel, enrolment, removal. */
     val badge: SettingsBadgeModel = SettingsBadgeModel(entry, own, viewModelScope) { loadUsers() }
@@ -193,12 +199,47 @@ internal class SettingsViewModel(
 
     // ── Training, language, product label ────────────────────────
 
-    /** The training switch; the engine refuses it while an order is open, and the refusal is shown as a toast. */
+    /**
+     * The training switch, guarded like the Z (`toggleTraining` of `SettingsView.vue`): the first tap arms it for
+     * [TRAINING_ARM_MS], the second one turns it off, or opens the manager's PIN dialog to turn it on. The engine
+     * refuses the switch while an order is open and checks the PIN; a refusal of the turn off is shown as a toast.
+     */
     fun toggleTraining() {
+        if (!own.value.trainingArmed) {
+            own.update { it.copy(trainingArmed = true) }
+            trainingDisarm?.cancel()
+            trainingDisarm =
+                viewModelScope.launch {
+                    delay(TRAINING_ARM_MS)
+                    own.update { it.copy(trainingArmed = false) }
+                }
+            return
+        }
+        disarmTraining()
+        if (!settings.trainingMode.value) {
+            own.update { it.copy(trainingPin = true) }
+            return
+        }
         viewModelScope.launch {
-            attempt { settings.setTrainingMode(!settings.trainingMode.value) }
+            attempt { settings.setTrainingMode(false) }
                 .onFailure { entry.errors().show(it, language(), ttlMs = TRAINING_TOAST_MS) }
         }
+    }
+
+    private fun disarmTraining() {
+        trainingDisarm?.cancel()
+        trainingDisarm = null
+        own.update { it.copy(trainingArmed = false) }
+    }
+
+    /** The manager's PIN typed to turn training mode on; a refusal is thrown for the dialog to display. */
+    suspend fun enableTraining(pin: String) {
+        settings.setTrainingMode(true, pin)
+    }
+
+    /** The training PIN dialog finished or was cancelled. */
+    fun closeTrainingPin() {
+        own.update { it.copy(trainingPin = false) }
     }
 
     /** Chooses the language of the texts (the order screen reloads its own menu, UI-PD303). */

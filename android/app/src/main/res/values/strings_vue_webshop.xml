@@ -37,6 +37,15 @@
     <string name="webshop_action_out_for_delivery">En livraison</string>
     <string name="webshop_action_complete">Terminer</string>
     <string name="webshop_action_reject">Refuser</string>
+    <string name="webshop_reject_title">Refuser la commande ?</string>
+    <string name="webshop_reject_message">La plateforme et le client seront prévenus du refus. Cette action est définitive.</string>
+    <string name="webshop_reject_reason_label">Motif du refus</string>
+    <string name="webshop_reject_reason_out_of_stock">Rupture de stock</string>
+    <string name="webshop_reject_reason_too_busy">Trop de commandes</string>
+    <string name="webshop_reject_reason_closed">Restaurant fermé</string>
+    <string name="webshop_reject_reason_other">Autre</string>
+    <string name="webshop_reject_confirm">Refuser la commande</string>
+    <string name="webshop_cashier_only">Réservé au serveur ou au gérant</string>
     <string name="webshop_loading">Chargement…</string>
     <string name="webshop_empty">Aucune commande à afficher.</string>
     <string name="webshop_action_print_kitchen">Ticket cuisine</string>

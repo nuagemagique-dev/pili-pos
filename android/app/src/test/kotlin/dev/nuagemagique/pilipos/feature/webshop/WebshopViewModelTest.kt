@@ -409,11 +409,101 @@ class WebshopViewModelTest {
             assertEquals(WebshopDialog.RejectConfirm(1L), r.state.dialog)
             coVerify(exactly = 0) { f.engine.webshopRejectOrder(any()) }
 
+            r.model.pickRejectReason(RejectReason.OUT_OF_STOCK)
             r.model.confirmReject()
             runCurrent()
 
             assertNull(r.state.dialog)
             coVerify(exactly = 1) { f.engine.webshopRejectOrder(1L) }
+        }
+
+    @Test
+    fun theRefusalWaitsForAReasonAndAnotherTapChangesIt() =
+        runTest {
+            val f = fixture(webshopOrder(1))
+            val r = startWebshop(f, context)
+            r.login()
+            coEvery { f.engine.webshopRejectOrder(1L) } returns Unit
+
+            r.model.askReject(r.order(1))
+            r.model.confirmReject()
+            runCurrent()
+            // No reason yet: the dialog stays and nothing is sent.
+            assertEquals(WebshopDialog.RejectConfirm(1L), r.state.dialog)
+            coVerify(exactly = 0) { f.engine.webshopRejectOrder(any()) }
+
+            r.model.pickRejectReason(RejectReason.OUT_OF_STOCK)
+            assertEquals(WebshopDialog.RejectConfirm(1L, RejectReason.OUT_OF_STOCK), r.state.dialog)
+            r.model.pickRejectReason(RejectReason.OTHER)
+            assertEquals(WebshopDialog.RejectConfirm(1L, RejectReason.OTHER), r.state.dialog)
+            coVerify(exactly = 0) { f.engine.webshopRejectOrder(any()) }
+
+            r.model.confirmReject()
+            runCurrent()
+            assertNull(r.state.dialog)
+            coVerify(exactly = 1) { f.engine.webshopRejectOrder(1L) }
+        }
+
+    @Test
+    fun leavingTheRefusalDialogSendsNothingAndTheNextOneStartsWithoutAReason() =
+        runTest {
+            val f = fixture(webshopOrder(1))
+            val r = startWebshop(f, context)
+            r.login()
+
+            r.model.askReject(r.order(1))
+            r.model.pickRejectReason(RejectReason.CLOSED)
+            r.model.dismissDialog()
+            runCurrent()
+            assertNull(r.state.dialog)
+            r.model.askReject(r.order(1))
+
+            assertEquals(WebshopDialog.RejectConfirm(1L), r.state.dialog)
+            coVerify(exactly = 0) { f.engine.webshopRejectOrder(any()) }
+        }
+
+    @Test
+    fun anApprenticeCannotAcceptRefuseCollectOrCompleteButCanRunTheKitchenSteps() =
+        runTest {
+            val f =
+                fixture(
+                    webshopOrder(1),
+                    webshopOrder(2, hubrise = "accepted", fiscal = "signed_n"),
+                    webshopOrder(3, hubrise = "awaiting_collection", fiscal = "signed_p"),
+                    webshopOrder(4, hubrise = "awaiting_collection", fiscal = "signed_n"),
+                )
+            val r = startWebshop(f, context)
+            r.login(apprentice)
+            coEvery { f.engine.hubrisePatchOrderStatus(any()) } returns Unit
+
+            assertFalse(r.state.canTakePayment)
+            r.model.askReject(r.order(1))
+            tap(r, 1)
+            tap(r, 3)
+            tap(r, 4)
+            r.model.collectCard(r.order(3))
+            runCurrent()
+            assertNull(r.state.dialog)
+            coVerify(exactly = 0) { f.engine.webshopAcceptOrder(any()) }
+            coVerify(exactly = 0) { f.engine.webshopRejectOrder(any()) }
+            coVerify(exactly = 0) { f.engine.webshopHandoverOrder(any()) }
+            coVerify(exactly = 0) { f.engine.webshopCompleteOrder(any()) }
+
+            // Starting the kitchen is a staff step: it still goes through.
+            tap(r, 2)
+            coVerify(exactly = 1) { f.engine.hubrisePatchOrderStatus(any()) }
+        }
+
+    @Test
+    fun aServerAndAManagerMayActOnTheirCards() =
+        runTest {
+            val f = fixture(webshopOrder(1))
+            val r = startWebshop(f, context)
+            r.login(cashier)
+
+            assertTrue(r.state.canTakePayment)
+            r.model.askReject(r.order(1))
+            assertEquals(WebshopDialog.RejectConfirm(1L), r.state.dialog)
         }
 
     @Test
@@ -439,6 +529,7 @@ class WebshopViewModelTest {
             coEvery { f.engine.webshopRejectOrder(1L) } throws PosException.Coded("webshop_already_handled", emptyMap())
 
             r.model.askReject(r.order(1))
+            r.model.pickRejectReason(RejectReason.TOO_BUSY)
             r.model.confirmReject()
             runCurrent()
 
@@ -503,6 +594,7 @@ class WebshopViewModelTest {
             val r = startWebshop(f, context)
             r.login()
             r.model.askReject(r.order(1))
+            r.model.pickRejectReason(RejectReason.CLOSED)
             coEvery { f.engine.hubriseListWebshopOrders() } returns emptyList()
             r.model.refresh()
             runCurrent()

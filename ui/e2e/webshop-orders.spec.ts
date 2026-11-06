@@ -332,11 +332,133 @@ test.describe('Webshop Orders View - signing', () => {
     await expect(page.locator('.column-new .card')).toHaveCount(1)
   })
 
-  test('Refuser rejects through the fiscal command', async ({ page }) => {
+  test('Refuser asks for a reason, then rejects through the fiscal command', async ({ page }) => {
     await board(page, [SAMPLE_ORDER])
-    await page.getByRole('button', { name: 'Refuser' }).click()
+    await page.getByTestId('reject-button').click()
+    // Nothing is sent before the confirmation, and the red button waits for a reason.
+    await expect(page.getByTestId('reject-dialog')).toBeVisible()
+    await expect(page.getByTestId('reject-confirm')).toBeDisabled()
+    expect(await ipcCalls(page, 'webshop_reject_order')).toHaveLength(0)
+    for (const label of ['Rupture de stock', 'Trop de commandes', 'Restaurant fermé', 'Autre']) {
+      await expect(
+        page.getByTestId('reject-dialog').getByRole('button', { name: label }),
+      ).toBeVisible()
+    }
+    await page.getByTestId('reject-reason-out_of_stock').click()
+    await expect(page.getByTestId('reject-confirm')).toBeEnabled()
+    await expect(page.getByTestId('reject-confirm')).toHaveText('Refuser la commande')
+    await page.getByTestId('reject-confirm').click()
     expect(await ipcCalls(page, 'webshop_reject_order')).toEqual([{ orderId: 1 }])
+    await expect(page.getByTestId('reject-dialog')).toHaveCount(0)
     await expect(page.locator('.column-new .card')).toHaveCount(0)
+  })
+
+  test('leaving the reject confirmation refuses nothing', async ({ page }) => {
+    await board(page, [SAMPLE_ORDER])
+    await page.getByTestId('reject-button').click()
+    await page.getByTestId('reject-reason-closed').click()
+    await page.getByTestId('reject-cancel').click()
+    await expect(page.getByTestId('reject-dialog')).toHaveCount(0)
+    expect(await ipcCalls(page, 'webshop_reject_order')).toHaveLength(0)
+    await expect(page.locator('.column-new .card')).toHaveCount(1)
+    // A reopened dialog starts again without a reason.
+    await page.getByTestId('reject-button').click()
+    await expect(page.getByTestId('reject-confirm')).toBeDisabled()
+  })
+
+  test('Refuser is at the other end of the row from Accepter, outlined red', async ({ page }) => {
+    await board(page, [SAMPLE_ORDER])
+    const reject = page.getByTestId('reject-button')
+    const accept = page.locator('.column-new .btn-primary')
+    const r = (await reject.boundingBox())!
+    const a = (await accept.boundingBox())!
+    expect(r.x + r.width).toBeLessThan(a.x)
+    expect(a.x - (r.x + r.width)).toBeGreaterThan(150)
+    const style = await reject.evaluate((el) => {
+      const c = getComputedStyle(el)
+      return { bg: c.backgroundColor, border: c.borderTopColor, width: c.borderTopWidth }
+    })
+    expect(style.bg).toBe('rgba(0, 0, 0, 0)')
+    expect(style.border).toBe('rgb(255, 77, 61)')
+    expect(style.width).toBe('2px')
+  })
+
+  test('an Apprenti sees accept and reject disabled with the reason, not an error', async ({
+    page,
+  }) => {
+    await board(page, [SAMPLE_ORDER], 'waiter')
+    const card = page.locator('.column-new .card')
+    await expect(card.getByTestId('cashier-only')).toHaveText('Réservé au serveur ou au gérant')
+    // A permission note is neutral help text, never amber (amber means "waiting").
+    const colours = await page.evaluate(() => {
+      const css = getComputedStyle(document.documentElement)
+      const note = document.querySelector('[data-testid="cashier-only"]')!
+      return {
+        note: getComputedStyle(note).color,
+        secondary: (() => {
+          const probe = document.createElement('span')
+          probe.style.color = css.getPropertyValue('--text-secondary')
+          document.body.append(probe)
+          const c = getComputedStyle(probe).color
+          probe.remove()
+          return c
+        })(),
+        warning: (() => {
+          const probe = document.createElement('span')
+          probe.style.color = css.getPropertyValue('--accent-warning')
+          document.body.append(probe)
+          const c = getComputedStyle(probe).color
+          probe.remove()
+          return c
+        })(),
+      }
+    })
+    expect(colours.note).toBe(colours.secondary)
+    expect(colours.note).not.toBe(colours.warning)
+    await expect(card.locator('.btn-primary')).toBeDisabled()
+    await expect(card.getByTestId('reject-button')).toBeDisabled()
+    await card.locator('.btn-primary').click({ force: true })
+    expect(await ipcCalls(page, 'webshop_accept_order')).toHaveLength(0)
+    await expect(page.getByTestId('reject-dialog')).toHaveCount(0)
+  })
+
+  test('an Apprenti cannot collect or complete, but can start and finish the kitchen steps', async ({
+    page,
+  }) => {
+    await board(
+      page,
+      [
+        variant(
+          4,
+          { hubrise_status: 'awaiting_collection', service_type: 'collection', source: 'Website' },
+          { payment_mode: 'unpaid', payment_type: null, fiscal_state: 'signed_p' },
+        ),
+        variant(5, { hubrise_status: 'awaiting_collection' }, { fiscal_state: 'signed_n' }),
+        variant(6, { hubrise_status: 'accepted' }, { fiscal_state: 'signed_n' }),
+      ],
+      'waiter',
+      { hubrise_patch_order_status: () => undefined },
+    )
+    const ready = page.locator('.column-ready .card')
+    await expect(ready).toHaveCount(2)
+    for (const id of [0, 1]) {
+      await expect(ready.nth(id).getByTestId('cashier-only')).toBeVisible()
+      await expect(ready.nth(id).locator('.btn-primary')).toBeDisabled()
+    }
+    await expect(ready.first().getByRole('button', { name: 'Encaisser carte' })).toBeDisabled()
+    // Preparing is a staff step: no note, the button works.
+    const kitchen = page.locator('.column-kitchen .card')
+    await expect(kitchen.getByTestId('cashier-only')).toHaveCount(0)
+    await kitchen.locator('.btn-primary').click()
+    expect(await ipcCalls(page, 'hubrise_patch_order_status')).toHaveLength(1)
+  })
+
+  test('a server (role cashier) keeps every button of the card enabled', async ({ page }) => {
+    await board(page, [SAMPLE_ORDER], 'cashier')
+    const card = page.locator('.column-new .card')
+    await expect(card.getByTestId('cashier-only')).toHaveCount(0)
+    await expect(card.locator('.btn-primary')).toBeEnabled()
+    await expect(card.getByTestId('reject-button')).toBeEnabled()
   })
 
   test('an unpaid order ready for collection is cashed in at the till', async ({ page }) => {

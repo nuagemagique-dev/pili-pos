@@ -9,6 +9,7 @@ import dev.nuagemagique.pilipos.feature.tables.TablesRoutes
 import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
 import dev.nuagemagique.pilipos.i18n.AppLanguage
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
+import dev.nuagemagique.pilipos.ui.state.IdleWarning
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -50,6 +51,8 @@ internal data class HeaderUiState(
     val pendingOrders: Int = 0,
     /** True while the own-PIN dialog is open. */
     val pinOpen: Boolean = false,
+    /** The engine's warning that the idle lock is near (UX audit L4), or null. */
+    val idleWarning: IdleWarning? = null,
 ) {
     /** The Tables button is the active one (`tablesActive`). */
     val tablesActive: Boolean get() = area == HeaderArea.TABLES || dineInOrder
@@ -91,7 +94,8 @@ internal class HeaderViewModel(
                 entry.webshop().pendingCount,
             ) { user, manager, current, hubrise, pending -> build(user, manager, current, hubrise, pending) },
             pinOpen,
-        ) { base, pin -> base.copy(pinOpen = pin && base.roleKey != null) }
+            session.idleWarning,
+        ) { base, pin, warning -> base.copy(pinOpen = pin && base.roleKey != null, idleWarning = warning) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, initialState())
 
     private fun initialState(): HeaderUiState =
@@ -101,7 +105,7 @@ internal class HeaderViewModel(
             order.current.value,
             entry.integrations().hubriseVisible.value,
             entry.webshop().pendingCount.value,
-        ).let { it.copy(pinOpen = pinOpen.value && it.roleKey != null) }
+        ).let { it.copy(pinOpen = pinOpen.value && it.roleKey != null, idleWarning = session.idleWarning.value) }
 
     /** One-shot moves, each delivered once. */
     val effects: Flow<HeaderEffect> = effectChannel.receiveAsFlow()

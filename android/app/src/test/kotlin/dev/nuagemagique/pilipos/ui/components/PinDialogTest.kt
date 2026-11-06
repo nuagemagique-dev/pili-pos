@@ -75,6 +75,12 @@ class PinDialogTest {
     }
 
     @Test
+    fun theKeysAreLaidOutLikeACalculator() {
+        show(PinMode.Verify) {}
+        compose.assertCalculatorLayout()
+    }
+
+    @Test
     fun dotsFillWithTheDigits() {
         show(PinMode.Verify) {}
         type("12")

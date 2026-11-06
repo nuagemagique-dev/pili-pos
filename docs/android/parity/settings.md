@@ -12,7 +12,7 @@ screen only calls it through the shared stores and the gateway.
 | --- | --- | --- |
 | ui/src/views/SettingsView.vue (employees: list, add, deactivate, PIN) | feature/settings/SettingsScreen.kt (SettingsRoute, SettingsContent, SettingsDialogs), SettingsViewModel.kt | `list_users` `create_user` `deactivate_user` `set_pin` |
 | SettingsView.vue (employees: presence registered by a manager, presence-only profile) | feature/settings/SettingsScreen.kt (EmployeesPanel, WorkerRow), SettingsViewModel.kt (`togglePresence`) over ui/fdm/FdmStore.kt | `clock_in_employee` `clock_out_employee` `list_open_shifts` |
-| SettingsView.vue (training mode) | feature/settings/SettingsScreen.kt (TrainingPanel) over ui/state/PosSettingsStore.kt | `set_training_mode` |
+| SettingsView.vue (training mode, guarded: armed second tap within 5 s, manager PIN to turn it on) | feature/settings/SettingsScreen.kt (TrainingPanel, TrainingPinDialog in SettingsDialogs), SettingsParts.kt (TrainingToggle, `armed`), SettingsViewModel.kt (toggleTraining, enableTraining, closeTrainingPin; state `trainingArmed`, `trainingPin`) over ui/state/PosSettingsStore.kt | `set_training_mode` |
 | SettingsView.vue (table plan, managers) | feature/settings/SettingsScreen.kt (TablePlanPanel), SettingsViewModel.kt | `get_table_plan` `set_table_plan` |
 | SettingsView.vue (ticket deliveries and the mail status) | feature/settings/SettingsScreen.kt (DeliveriesPanel) over ui/state/DeliveryStore.kt | `list_ticket_deliveries` `check_mail_status` |
 | ui/src/components/BadgeSettings.vue (reader, badge login, USB timing, log) | feature/settings/SettingsBadgePanel.kt (BadgePanel), SettingsBadgeModel.kt, SettingsBadgeState.kt over ui/badge/BadgeStore.kt | `get_badge_settings` `set_badge_settings` `list_badges` |
@@ -64,6 +64,14 @@ screen only calls it through the shared stores and the gateway.
   `presenceOnly`, and opens no PIN dialog. Test tags: `worker_<insz>_presence` (the state line),
   `worker_<insz>_presence_in` and `worker_<insz>_presence_out` (the button), `settings_presence_note`,
   `settings_presence_block`.
+- **Training mode is guarded (audit R4).** Same flow as the Z button: the first tap arms the switch (`trainingArmed`,
+  red, text `settings_training_confirm_on` or `_off`) for `TRAINING_ARM_MS` (5 s, then it disarms by itself); the second
+  tap turns training off, or opens the manager's PIN (`PinDialog` in `PinMode.Verify`, hint `settings_training_pin_hint`,
+  tag `settings_training_pin_dialog`) to turn it on. The PIN is the new optional `operator_pin` argument of
+  `set_training_mode` (Vue `operatorPin`): the engine requires and checks it when the mode goes from off to on, with the
+  usual wrong-PIN throttle (`pin_required`, `pin_wrong`, `pin_locked`), and the refusal is shown in the dialog (a refused
+  turn off, for example with an open order, is still a toast). Turning it off or asking for the mode already set needs no
+  PIN. Nothing is signed.
 - **Deactivation asks in a dialog.** Vue arms the button for a second tap. The view model keeps the two taps (the
   first arms, the second deactivates) and the screen shows the armed state as a `ConfirmDialog` naming the employee.
 - **PIN dialogs.** The three Vue `PinDialog`s become the `PinDialog` of `ui/components/` in the scaffold's overlay

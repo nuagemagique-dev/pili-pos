@@ -12,7 +12,13 @@
     <string name="exact_rounded">精确 {exact} · 5分进位</string>
     <string name="items_count">{n} 件</string>
     <string name="ticket_medium">小票</string>
-    <string name="validate_part">确认第{n}份</string>
+    <string name="collect_cash">现金收款 {amount} €</string>
+    <string name="collect_card">刷卡收款 {amount} €</string>
+    <string name="collect_meal_voucher">餐券收款 {amount} €</string>
+    <string name="collect_gift_voucher">礼品券收款 {amount} €</string>
+    <string name="collect_part">收取第{n}份 · {amount} €</string>
+    <string name="rest_methods">剩余 {amount} €：</string>
+    <string name="done_auto_return">即将返回桌位 · 点击继续</string>
     <string name="received_amount">收到 {amount} €</string>
     <string name="eft_overlay_title">终端支付</string>
     <string name="eft_present_card">请顾客在终端上刷卡</string>

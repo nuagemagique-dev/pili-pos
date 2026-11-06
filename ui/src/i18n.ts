@@ -1106,6 +1106,17 @@ const coreMessages: Messages = {
   refund_select_ticket: { fr: 'Sélectionner le ticket', en: 'Select ticket', zh: '选择票据' },
   refund_select_items: { fr: 'Articles à rembourser', en: 'Items to refund', zh: '退款商品' },
   refund_confirm: { fr: 'Rembourser', en: 'Refund', zh: '退款' },
+  // The one confirmation before the refund is signed (the row action stays "Rembourser").
+  refund_confirm_final: {
+    fr: 'Confirmer le remboursement',
+    en: 'Confirm the refund',
+    zh: '确认退款',
+  },
+  refund_cash_total: {
+    fr: 'À rembourser en espèces',
+    en: 'To pay back in cash',
+    zh: '现金退还金额',
+  },
   refund_success: { fr: 'Remboursement enregistré', en: 'Refund recorded', zh: '退款已记录' },
   refund_none: { fr: 'Aucun ticket récent', en: 'No recent tickets', zh: '无近期票据' },
 
@@ -1242,6 +1253,55 @@ const coreMessages: Messages = {
     zh: '秤正在校验…',
   },
   status_kitchen: { fr: 'Cuisine', en: 'Kitchen', zh: '厨房' },
+  toast_tap_to_close: { fr: 'Touchez pour fermer', en: 'Tap to close', zh: '点按关闭' },
+  // Status light sheet (UX audit L2)
+  status_light_aria: { fr: '{name} : {state}', en: '{name}: {state}', zh: '{name}：{state}' },
+  status_state_ok: { fr: 'Fonctionne', en: 'Working', zh: '正常' },
+  status_state_warn: { fr: 'À surveiller', en: 'Needs attention', zh: '需留意' },
+  status_state_err: { fr: 'Ne répond pas', en: 'Not working', zh: '故障' },
+  status_state_none: { fr: 'Non configuré', en: 'Not configured', zh: '未配置' },
+  status_reason_ok: {
+    fr: 'Aucun problème signalé.',
+    en: 'No problem reported.',
+    zh: '没有发现问题。',
+  },
+  status_reason_none: {
+    fr: "Pas configuré, ou le moteur n'a pas répondu.",
+    en: 'Not configured, or the engine did not answer.',
+    zh: '未配置，或引擎没有响应。',
+  },
+  status_reason_fdm_offline: {
+    fr: "La boîte noire ne répond pas. Vérifiez qu'elle est allumée et branchée.",
+    en: 'The black box does not answer. Check that it is on and plugged in.',
+    zh: '黑匣子没有响应。请检查是否已开机并接好线。',
+  },
+  status_reason_printer_err: {
+    fr: "L'imprimante ne répond pas. Vérifiez qu'elle est allumée et sur le réseau.",
+    en: 'The printer does not answer. Check that it is on and on the network.',
+    zh: '打印机没有响应。请检查是否已开机并连上网络。',
+  },
+  status_reason_hubrise_err: {
+    fr: "HubRise refuse l'accès, ou des envois sont bloqués. Voyez la Config.",
+    en: 'HubRise refuses access, or some updates are stuck. See Config.',
+    zh: 'HubRise 拒绝访问，或有更新被卡住。请查看设置。',
+  },
+  status_reason_hubrise_warn: {
+    fr: "HubRise n'est pas connecté, des commandes attendent ou des mises à jour n'ont pas pu partir.",
+    en: 'HubRise is not connected, orders are waiting, or updates could not be sent.',
+    zh: 'HubRise 未连接、有订单在等待，或更新未能发送。',
+  },
+  status_reason_mail_warn: {
+    fr: "Le serveur d'e-mail ne répond pas. Les tickets numériques attendront.",
+    en: 'The e-mail server does not answer. Digital tickets will wait.',
+    zh: '邮件服务器没有响应。电子小票将稍后发送。',
+  },
+  status_last_check: {
+    fr: 'Dernière vérification : {time}',
+    en: 'Last check: {time}',
+    zh: '上次检查：{time}',
+  },
+  status_never_checked: { fr: 'Pas encore vérifié', en: 'Not checked yet', zh: '尚未检查' },
+  status_sheet_close: { fr: 'Fermer', en: 'Close', zh: '关闭' },
   fdm_closes_in: { fr: 'se ferme dans {s} s', en: 'closes in {s} s', zh: '{s} 秒后关闭' },
   fdm_retry_in: {
     fr: 'nouvel essai automatique dans {s} s',
@@ -1261,6 +1321,12 @@ const coreMessages: Messages = {
     zh: '未送厨房',
   },
   send_to_kitchen: { fr: 'Envoyer en cuisine', en: 'Send to kitchen', zh: '送厨房' },
+  send_lines_one: { fr: '1 ligne', en: '1 line', zh: '1 行' },
+  send_lines_other: { fr: '{n} lignes', en: '{n} lines', zh: '{n} 行' },
+  // "Plus" menu of the cart header: the rare cart-level actions.
+  cart_more: { fr: 'Plus', en: 'More', zh: '更多' },
+  cart_more_title: { fr: 'Autres actions', en: 'More actions', zh: '更多操作' },
+  cart_more_close: { fr: 'Fermer', en: 'Close', zh: '关闭' },
   sent_to_kitchen: {
     fr: 'Envoyé en cuisine · {n} articles',
     en: 'Sent to the kitchen · {n} items',
@@ -1371,9 +1437,20 @@ const coreMessages: Messages = {
   },
   keypad_space: { fr: 'Espace', en: 'Space', zh: '空格' },
 
+  // Idle lock (UX audit L4)
+  idle_lock_warning: {
+    fr: "Verrouillage dans {s} s · touchez l'écran pour rester connecté",
+    en: 'Locking in {s} s · touch the screen to stay signed in',
+    zh: '{s} 秒后锁定 · 触摸屏幕保持登录',
+  },
+  idle_locked_notice: {
+    fr: "Caisse verrouillée après {min} min d'inactivité",
+    en: 'Till locked after {min} min of inactivity',
+    zh: '收银机因 {min} 分钟无操作已自动锁定',
+  },
+
   // Tables screen (Pili)
   takeaway_started_at: { fr: 'Commencée à {time}', en: 'Started at {time}', zh: '{time} 开始' },
-  takeaway_start: { fr: 'Nouvelle vente à emporter', en: 'New takeaway sale', zh: '新外带订单' },
 
   // Login screen (Pili)
   who_are_you: { fr: 'Qui êtes-vous ?', en: 'Who are you?', zh: '您是谁？' },

@@ -190,6 +190,66 @@ class CheckoutScreenshotTest {
     }
 
     @Test
+    fun cashExactEntered() {
+        // P1: cash starts at the exact amount, the button says what it collects.
+        capture(
+            base.copy(
+                entry = AmountEntryState("3190"),
+                fresh = true,
+                amounts =
+                    CheckoutAmounts(
+                        restCents = 3_190L,
+                        dueCents = 3_190L,
+                        roundedDueCents = 3_190L,
+                        restShownCents = 3_190L,
+                        shares = listOf(3_190L),
+                        quickAmountsCents = listOf(3_500L, 4_000L, 5_000L),
+                    ),
+            ),
+            "checkout_cash_exact",
+        )
+    }
+
+    @Test
+    fun restAfterAMealVoucherPart() {
+        // P6: one row names the rest and the methods that can still pay it.
+        capture(
+            base.copy(
+                method = PaymentMethod.CASH,
+                taken = listOf(TakenPart(PaymentMethod.MEAL_VOUCHER, 1_960L, 0L)),
+                entry = AmountEntryState("1230"),
+                fresh = true,
+                amounts =
+                    CheckoutAmounts(
+                        restCents = 1_230L,
+                        dueCents = 1_230L,
+                        roundedDueCents = 1_230L,
+                        restShownCents = 1_230L,
+                        shares = listOf(3_190L),
+                        quickAmountsCents = listOf(1_500L, 2_000L, 5_000L),
+                    ),
+            ),
+            "checkout_rest_row",
+        )
+    }
+
+    @Test
+    fun doneReturnsByItself() {
+        // P2: OK and the change very large, no "Terminer" to hunt for: the screen leaves after 2 s.
+        val done =
+            CheckoutDone(
+                ticketLabel = "Ticket de vente",
+                totalCents = 3_190L,
+                changeCents = 270L,
+                fdmId = "FDM0123456789",
+                fdmConnected = true,
+                delivery = null,
+                fiscalEventId = 99L,
+            )
+        capture(base.copy(step = CheckoutStep.DONE, hasOrder = false, done = done), "checkout_done_auto_return")
+    }
+
+    @Test
     fun terminalLockedPartAndWaitingPayment() {
         val locked = TakenPart(PaymentMethod.CARD, 1_064L, 0L, eftPaymentId = 12L, brand = "Bancontact")
         val chips =

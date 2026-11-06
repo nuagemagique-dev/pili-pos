@@ -37,6 +37,15 @@
     <string name="webshop_action_out_for_delivery">出发配送</string>
     <string name="webshop_action_complete">结束</string>
     <string name="webshop_action_reject">拒绝</string>
+    <string name="webshop_reject_title">拒绝订单？</string>
+    <string name="webshop_reject_message">平台和顾客将收到拒绝通知。此操作无法撤销。</string>
+    <string name="webshop_reject_reason_label">拒绝原因</string>
+    <string name="webshop_reject_reason_out_of_stock">缺货</string>
+    <string name="webshop_reject_reason_too_busy">订单太多</string>
+    <string name="webshop_reject_reason_closed">餐厅已关门</string>
+    <string name="webshop_reject_reason_other">其他</string>
+    <string name="webshop_reject_confirm">拒绝订单</string>
+    <string name="webshop_cashier_only">仅限服务员或经理</string>
     <string name="webshop_loading">加载中…</string>
     <string name="webshop_empty">暂无订单</string>
     <string name="webshop_action_print_kitchen">厨房单</string>

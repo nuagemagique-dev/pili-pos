@@ -36,6 +36,12 @@ class NumPadTest {
     }
 
     @Test
+    fun theKeysAreLaidOutLikeACalculator() {
+        show()
+        compose.assertCalculatorLayout()
+    }
+
+    @Test
     fun clearAndBackspaceEmitTheirKeys() {
         show()
         compose.onNodeWithTag("numpad_clear").performClick()

@@ -1,12 +1,13 @@
 package dev.nuagemagique.pilipos.feature.login
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -25,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import dev.nuagemagique.pilipos.R
 import dev.nuagemagique.pilipos.ui.scaffold.PiliLogo
+import dev.nuagemagique.pilipos.ui.scaffold.stateWordKey
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
@@ -37,7 +40,8 @@ private const val HEADLINE_SCALE = 1.4f
 private const val MUTED_ALPHA = 0.4f
 private const val VERSION_ALPHA = 0.8f
 
-private val CheckRowHeight = 44.dp
+/** A check row is a button: 48 dp high at least (the Vue row is 44 px, its hit area 48). */
+private val CheckRowHeight = 48.dp
 private val CheckDotSize = 10.dp
 private val BrandPadding = 80.dp
 
@@ -55,6 +59,7 @@ private fun CheckState.tint(): Color =
 @Composable
 internal fun LoginBrandColumn(
     state: LoginUiState,
+    onOpenDevice: (CheckId) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -63,7 +68,7 @@ internal fun LoginBrandColumn(
     ) {
         BrandMark()
         Column(verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceXs)) {
-            ChecksPanel(state.checks)
+            ChecksPanel(state.checks, onOpenDevice)
             BrandFooter(state)
         }
     }
@@ -93,9 +98,12 @@ private fun BrandMark() {
     }
 }
 
-/** The "start-up" label and one row per check (UX guide 2.3 and 8.1). */
+/** The "start-up" label and one row per check (UX guide 2.3 and 8.1); a tap on a row opens its status sheet (L2). */
 @Composable
-private fun ChecksPanel(checks: List<StartupCheck>) {
+private fun ChecksPanel(
+    checks: List<StartupCheck>,
+    onOpenDevice: (CheckId) -> Unit,
+) {
     val typography = PiliTheme.typography
     Column(
         modifier = Modifier.fillMaxWidth().testTag("login_checks"),
@@ -112,44 +120,56 @@ private fun ChecksPanel(checks: List<StartupCheck>) {
             color = PiliTheme.colors.textSecondary,
             modifier = Modifier.padding(bottom = PiliTheme.dimens.spaceSm),
         )
-        checks.forEach { CheckRow(it) }
+        checks.forEach { CheckRow(it, onOpenDevice) }
     }
 }
 
 @Composable
-private fun CheckRow(check: StartupCheck) {
+private fun CheckRow(
+    check: StartupCheck,
+    onOpen: (CheckId) -> Unit,
+) {
     val colors = PiliTheme.colors
     val typography = PiliTheme.typography
     val tint = check.state.tint()
-    Column(
-        Modifier
-            .testTag("login_check_${check.id.name.lowercase()}")
-            .then(check.detail?.let { detail -> Modifier.semantics { contentDescription = detail } } ?: Modifier),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().height(CheckRowHeight),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm + PiliTheme.dimens.spaceXs),
-        ) {
+    val name = checkLabel(check.id)
+    val spoken =
+        check.detail ?: vueText("status_light_aria", "name" to name, "state" to vueText(stateWordKey(check.state.light())))
+    Column {
+        // A transparent button lies over the row, so the text stays its own node while the whole row takes the tap.
+        Box(Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth().heightIn(min = CheckRowHeight),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm + PiliTheme.dimens.spaceXs),
+            ) {
+                Box(
+                    Modifier
+                        .size(CheckDotSize)
+                        .alpha(if (check.state == CheckState.None) MUTED_ALPHA else 1f)
+                        .background(tint, CircleShape),
+                )
+                Text(
+                    text = name,
+                    style = typography.figure.copy(fontSize = typography.sizePrice),
+                    color = colors.textSecondary,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = vueText(check.textKey),
+                    style = typography.figure.copy(fontSize = typography.sizePrice, fontWeight = typography.weightBold),
+                    color = tint,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.testTag("login_check_text_${check.id.name.lowercase()}"),
+                )
+            }
             Box(
                 Modifier
-                    .size(CheckDotSize)
-                    .alpha(if (check.state == CheckState.None) MUTED_ALPHA else 1f)
-                    .background(tint, CircleShape),
-            )
-            Text(
-                text = checkLabel(check.id),
-                style = typography.figure.copy(fontSize = typography.sizePrice),
-                color = colors.textSecondary,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text = vueText(check.textKey),
-                style = typography.figure.copy(fontSize = typography.sizePrice, fontWeight = typography.weightBold),
-                color = tint,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.testTag("login_check_text_${check.id.name.lowercase()}"),
+                    .matchParentSize()
+                    .testTag("login_check_${check.id.name.lowercase()}")
+                    .clickable(role = Role.Button, onClick = { onOpen(check.id) })
+                    .semantics { contentDescription = spoken },
             )
         }
         HorizontalDivider(color = colors.border)

@@ -49,6 +49,9 @@ internal const val CASHIER_INSZ = "90020200234"
 internal val admin = User(insz = ADMIN_INSZ, name = "Alice", role = UserRole.ADMIN, active = true, hasPin = true)
 internal val cashier = User(insz = CASHIER_INSZ, name = "Carl", role = UserRole.CASHIER, active = true, hasPin = true)
 
+/** An Apprenti: the internal role `waiter`. */
+internal val apprentice = User(insz = "95030300345", name = "Wendy", role = UserRole.WAITER, active = true, hasPin = true)
+
 /** The French language, for the expected texts. */
 internal val FR = AppLanguage.FR
 

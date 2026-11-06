@@ -46,6 +46,15 @@ class DiscountCartTest {
         compose.waitForIdle()
     }
 
+    /** The "Plus" menu as the order screen draws it; its rows call the same actions as the view model gets. */
+    private fun showMenu(menu: OrderDialog.CartMore) {
+        val callbacks = OrderCallbacks(onMoreDiscount = { seen += "discount" }, onMoreDiscountRemove = { seen += "remove-order" })
+        compose.setContent {
+            PiliTheme { ProvideUiText(AppLanguage.FR, catalog) { Box { CartMoreDialog(menu, callbacks) } } }
+        }
+        compose.waitForIdle()
+    }
+
     private val plain =
         CartRow(cartLine(1, 10, "Maki saumon", quantity = 2, unitPriceCents = 1_200), LineAmount.Total(2_400), canOffer = true)
 
@@ -78,9 +87,17 @@ class DiscountCartTest {
         )
 
     @Test
-    fun aManagerSeesTheDiscountButtonAndTapsIt() {
+    fun aManagerHasThePlusButtonAndNoDiscountInTheFooter() {
         show(OrderCartState(order = order(table = 4, totalCents = 2_400), rows = listOf(plain), canDiscount = true))
 
+        // The footer no longer has the button: it sits behind "Plus" (UX audit C3).
+        compose.onNodeWithTag("cart_discount").assertDoesNotExist()
+        compose.onNodeWithTag("cart_more").assertIsDisplayed()
+    }
+
+    @Test
+    fun aManagerSeesTheDiscountButtonAndTapsIt() {
+        showMenu(OrderDialog.CartMore(canTransfer = false, canDiscount = true, orderDiscounted = false, canCloseUnpaid = false))
         compose.onNodeWithTag("cart_discount").assertTextEquals("Remise")
         compose.onNodeWithTag("cart_discount").performClick()
 
@@ -93,20 +110,13 @@ class DiscountCartTest {
         show(OrderCartState(order = order(table = 4, totalCents = 2_400), rows = listOf(noOffer)))
 
         compose.onNodeWithTag("cart_discount").assertDoesNotExist()
+        compose.onNodeWithTag("cart_more").assertDoesNotExist()
         compose.onNodeWithTag("cart_line_1_offer").assertDoesNotExist()
     }
 
     @Test
     fun anOrderDiscountSwitchesTheButtonToRemoval() {
-        show(
-            OrderCartState(
-                order = order(table = 4, totalCents = 1_200),
-                rows = listOf(halfOff),
-                canDiscount = true,
-                orderDiscounted = true,
-            ),
-        )
-
+        showMenu(OrderDialog.CartMore(canTransfer = false, canDiscount = true, orderDiscounted = true, canCloseUnpaid = false))
         compose.onNodeWithTag("cart_discount").assertDoesNotExist()
         compose.onNodeWithTag("cart_discount_remove").assertTextEquals("Retirer la remise")
         compose.onNodeWithTag("cart_discount_remove").performClick()

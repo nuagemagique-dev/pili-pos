@@ -111,6 +111,23 @@ class SettingsScreenshotTest {
     }
 
     @Test
+    fun trainingArmed() {
+        val state = managerState().copy(trainingArmed = true)
+        capture("settings_training_armed") { SettingsContent(state, SettingsCallbacks()) }
+    }
+
+    @Test
+    fun trainingPin() {
+        val state = managerState().copy(trainingPin = true)
+        capture(
+            "settings_training_pin",
+            overlay = { SettingsDialogs(state, SettingsPinActions(), DeactivateActions()) },
+        ) {
+            SettingsContent(state, SettingsCallbacks())
+        }
+    }
+
+    @Test
     fun users() {
         val state =
             managerState().copy(

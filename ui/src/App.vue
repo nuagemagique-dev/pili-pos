@@ -44,6 +44,9 @@ function forwardActivity() {
   const now = Date.now()
   if (now - lastActivity < ACTIVITY_THROTTLE_MS) return
   lastActivity = now
+  // The engine hears the touch and ends its warning; hide the countdown
+  // without waiting for the event.
+  auth.dismissIdleWarning()
   try {
     ipc.userActivity().catch(() => {})
   } catch {
@@ -73,6 +76,7 @@ onMounted(() => {
   void fdm.listenSignMessages()
   void fdm.listenStatus()
   void auth.listenPresenceFailed()
+  void auth.listenIdleLockWarning()
   for (const evt of ACTIVITY_EVENTS)
     document.addEventListener(evt, forwardActivity, { passive: true })
   // The engine locked the session (the order is already registered

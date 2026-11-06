@@ -9,7 +9,8 @@ use pos_engine::commands::fdm_monitor::{
     FdmHealth as EngineFdmHealth, FdmSeverity, do_fdm_check_now,
 };
 use pos_engine::commands::session::{
-    LockReason as EngineLockReason, SessionLocked as EngineSessionLocked, do_lock_session,
+    IdleLockWarning as EngineIdleLockWarning, LockReason as EngineLockReason,
+    SessionLocked as EngineSessionLocked, do_lock_session,
 };
 use pos_engine::commands::social::PresenceFailed as EnginePresenceFailed;
 use pos_engine_testkit::TestApp;
@@ -132,6 +133,7 @@ fn session_locked() {
     let payload = EngineSessionLocked {
         reason: EngineLockReason::Idle,
         order_error: Some("fdm_unavailable".into()),
+        idle_after_ms: Some(300_000),
     };
     let event = from_engine(EngineEvent::SessionLocked(payload.clone()));
     assert_eq!(event.topic(), "session-locked");
@@ -140,6 +142,30 @@ fn session_locked() {
     };
     assert_eq!(json_of(&locked), json_of(&payload));
     assert_eq!(locked.reason, ffi::LockReason::Idle);
+    assert_eq!(locked.idle_after_ms, Some(300_000));
+}
+
+#[test]
+fn idle_lock_warning() {
+    let payload = EngineIdleLockWarning {
+        lock_in_ms: Some(30_000),
+    };
+    let event = from_engine(EngineEvent::IdleLockWarning(payload.clone()));
+    assert_eq!(event.topic(), "idle-lock-warning");
+    let PosEvent::IdleLockWarning { warning } = event else {
+        panic!("an idle lock warning event");
+    };
+    assert_eq!(json_of(&warning), json_of(&payload));
+    assert_eq!(warning.lock_in_ms, Some(30_000));
+
+    // The "over" form carries no time left.
+    let over = from_engine(EngineEvent::IdleLockWarning(EngineIdleLockWarning {
+        lock_in_ms: None,
+    }));
+    let PosEvent::IdleLockWarning { warning } = over else {
+        panic!("an idle lock warning event");
+    };
+    assert_eq!(warning.lock_in_ms, None);
 }
 
 #[test]
@@ -225,7 +251,9 @@ fn every_engine_topic_survives_the_conversion() {
         EngineEvent::SessionLocked(EngineSessionLocked {
             reason: EngineLockReason::Manual,
             order_error: None,
+            idle_after_ms: None,
         }),
+        EngineEvent::IdleLockWarning(EngineIdleLockWarning { lock_in_ms: None }),
         EngineEvent::PresenceFailed(EnginePresenceFailed {
             insz: "1".into(),
             clock_in: true,
@@ -237,7 +265,7 @@ fn every_engine_topic_survives_the_conversion() {
         EngineEvent::CatalogRejected(callback()),
         EngineEvent::CatalogAwaitingAdoption(callback()),
     ];
-    assert_eq!(all.len(), 9, "the nine topics of the engine");
+    assert_eq!(all.len(), 10, "the ten topics of the engine");
     for event in all {
         let topic = event.topic();
         assert_eq!(from_engine(event).topic(), topic);

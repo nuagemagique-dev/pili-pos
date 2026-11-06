@@ -3,6 +3,15 @@ use serde::Serialize;
 use crate::commands::access::{self, Access};
 use crate::state::AppState;
 
+/// Whether `insz` has a PIN in the database (the session's copy of the
+/// user can be older than a PIN set since).
+fn has_stored_pin(state: &AppState, insz: &str) -> Result<bool, String> {
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    Ok(pos_db::queries::users::get_pin_hash(&db, insz)
+        .map_err(|e| e.to_string())?
+        .is_some())
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PosSettings {
@@ -63,12 +72,35 @@ pub const ERR_OPEN_ORDERS: &str = crate::commands::errors::OPEN_ORDERS_TRAINING;
 /// Switch training mode. Managers only, and never while an order with
 /// lines is open: a real table would otherwise be paid as a training
 /// sale (T, never counted), or a training order paid as a real one.
+///
+/// Turning it ON is confirmed by the manager's own PIN (`operator_pin`,
+/// checked with the usual wrong-PIN throttle): training sales are never
+/// counted, so a tap on an unattended session must not start it. A
+/// manager always has a PIN (the login enforces it); an operator without
+/// one stored (only seen in test fixtures) is not asked. Turning it OFF,
+/// or asking for the mode already set, needs no PIN. Nothing is signed.
 #[expect(
     clippy::fn_params_excessive_bools,
     reason = "IPC/FFI contract: mirrors the bool argument of the Tauri command and the uniffi export"
 )]
-pub fn do_set_training_mode(state: &AppState, enabled: bool) -> Result<bool, String> {
-    access::operator(state, Access::Admin)?;
+pub fn do_set_training_mode(
+    state: &AppState,
+    enabled: bool,
+    operator_pin: Option<String>,
+) -> Result<bool, String> {
+    let operator = access::operator(state, Access::Admin)?;
+    let current = state
+        .config
+        .lock()
+        .map_err(|e| e.to_string())?
+        .training_mode;
+    if current == enabled {
+        return Ok(enabled);
+    }
+    if enabled && has_stored_pin(state, &operator.insz)? {
+        let pin = operator_pin.ok_or_else(|| crate::commands::errors::PIN_REQUIRED.to_string())?;
+        access::confirmed_operator(state, &operator.insz, &pin, Access::Admin)?;
+    }
     {
         let db = state.db.lock().map_err(|e| e.to_string())?;
         let busy: i64 = db

@@ -629,7 +629,7 @@ async fn a_pre_bill_then_the_sale_sign_the_same_kilos_on_a_table() {
 #[tokio::test]
 async fn a_training_sale_signs_the_kilos_too() {
     let (app, scale) = app_with_scale().await;
-    do_set_training_mode(&app.state, true).unwrap();
+    do_set_training_mode(&app.state, true, None).unwrap();
     let order_id = order(&app);
     scale.load(278);
     weigh(&app, order_id).await.unwrap();

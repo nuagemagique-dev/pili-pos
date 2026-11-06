@@ -144,7 +144,7 @@ def _opt(spec):
 ENGINE_ARGS = {
     "login": _args(insz=_req(STR), pin=_opt(("null", STR))),
     "logout": _args(),
-    "set_training_mode": _args(enabled=_req(BOOL)),
+    "set_training_mode": _args(enabled=_req(BOOL), pin=_opt(("null", STR))),
     "work_in": _args(employeeInsz=_req(STR)),
     "work_out": _args(employeeInsz=_req(STR)),
     "end_shift": _args(insz=_req(STR), pin=_opt(("null", STR))),

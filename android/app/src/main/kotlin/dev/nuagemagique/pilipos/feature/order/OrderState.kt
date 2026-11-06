@@ -10,6 +10,7 @@ import uniffi.pos_ffi.DiscountInput
 import uniffi.pos_ffi.MenuItem
 import uniffi.pos_ffi.ModifierGroup
 import uniffi.pos_ffi.Order
+import uniffi.pos_ffi.OrderType
 import uniffi.pos_ffi.SheetProductView
 import uniffi.pos_ffi.SlipOutcome
 import uniffi.pos_ffi.SoldOutItem
@@ -101,6 +102,17 @@ internal sealed interface OrderDialog {
         val current: Int,
     ) : OrderDialog
 
+    /**
+     * The "Plus" menu of the cart header (`CartMoreMenu.vue`): the cart-level actions this order and role have, read
+     * when it opened.
+     */
+    data class CartMore(
+        val canTransfer: Boolean,
+        val canDiscount: Boolean,
+        val orderDiscounted: Boolean,
+        val canCloseUnpaid: Boolean,
+    ) : OrderDialog
+
     /** "Customer left without paying": a manager confirms with the PIN; [userName] is shown as the hint. */
     data class CloseUnpaid(
         val userName: String,
@@ -186,7 +198,30 @@ internal data class OrderCartState(
     val nextHeldCourse: Int? = null,
     /** "Envoyer la suite" is running. */
     val sendingNext: Boolean = false,
-)
+) {
+    private val dineIn: Boolean get() = order?.orderType == OrderType.DINE_IN
+
+    /**
+     * The lines the kitchen still has to receive (`sendableLineCount` of `utils/cartPrimary.ts`): unsent quantity,
+     * not held back by a course, and not a bowl's paid option (it follows its bowl). Zero for a takeaway.
+     */
+    val sendableLineCount: Int
+        get() =
+            if (!dineIn) {
+                0
+            } else {
+                rows.count { it.line.unsentQuantity > 0 && it.line.kitchenState != "held" && it.line.bowlLineId == null }
+            }
+
+    /**
+     * "Envoyer en cuisine" is the Volt primary (`kitchenIsPrimary`): a dine-in order with lines to send, or a role
+     * that cannot take payment. PAYER is then an outlined secondary button.
+     */
+    val kitchenPrimary: Boolean get() = dineIn && (!canPay || sendableLineCount > 0)
+
+    /** The "Plus" button of the cart header has at least one action to offer. */
+    val hasMoreActions: Boolean get() = canTransfer || canDiscount || canCloseUnpaid
+}
 
 /** What the cart column can ask for. */
 internal data class OrderCartActions(
@@ -207,6 +242,8 @@ internal data class OrderCartActions(
     val onCourse: (lineId: Long) -> Unit = {},
     /** "Envoyer la suite": release and print the next held course. */
     val onSendNext: () -> Unit = {},
+    /** The "Plus" button of the cart header: opens the menu of the rare cart actions. */
+    val onMore: () -> Unit = {},
 )
 
 /** The menu part of the screen: the categories, the products of the selected one and what is already in the cart. */

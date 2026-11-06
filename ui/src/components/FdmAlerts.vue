@@ -6,10 +6,11 @@
  * - a warning shows an amber banner. The sale continues. An optional
  *   message closes itself after 10 s; a MANDATORY one stays while the
  *   FDM reports it, as §V requires.
- * - a blocking error covers the sales screens with a veil that cannot
- *   be dismissed: only "Réessayer", and the engine's monitor tries again
- *   on its own (backing off while the FDM does not answer). Reports and
- *   Config stay reachable so the manager can act.
+ * - a blocking error covers the sales screens, UNDER the header, with a
+ *   veil that cannot be dismissed: only "Réessayer", and the engine's
+ *   monitor tries again on its own (backing off while the FDM does not
+ *   answer). The header stays usable (Tables, Rapports, Config, Verrouiller)
+ *   so the manager can act.
  */
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -77,11 +78,15 @@ const retryIn = computed(() =>
   fdm.nextCheckAt === null ? null : Math.max(0, Math.ceil((fdm.nextCheckAt - now.value) / 1000)),
 )
 
+// While the veil is up the root carries `fdm-blocking`: the in-flow banners
+// under the header (training, idle lock) lift above the veil with it, so
+// they stay readable, as on Android where the veil covers only the content.
 watch(
   blocking,
   (on) => {
     clearInterval(tick)
     if (on) tick = setInterval(() => (now.value = Date.now()), 1000)
+    document.documentElement.classList.toggle('fdm-blocking', on)
   },
   { immediate: true },
 )
@@ -92,6 +97,7 @@ async function retry() {
 }
 
 onUnmounted(() => {
+  document.documentElement.classList.remove('fdm-blocking')
   clearInterval(bannerTimer)
   clearInterval(tick)
 })
@@ -159,10 +165,15 @@ onUnmounted(() => {
   white-space: nowrap;
 }
 
-/* §8.2 blocking: full screen, cannot be dismissed. */
+/* §8.2 blocking: covers the sales screens, cannot be dismissed. It starts
+ * under the header (L3), so Tables, Rapports, Config and Verrouiller stay
+ * reachable, as on Android (PosScaffold). */
 .fdm-veil {
   position: fixed;
-  inset: 0;
+  top: var(--header-height);
+  right: 0;
+  bottom: 0;
+  left: 0;
   z-index: 900;
   background: rgba(11, 13, 14, 0.86);
   display: flex;

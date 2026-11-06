@@ -23,6 +23,7 @@ object PosDateTime {
     private val LOCALE: Locale = Locale.forLanguageTag("fr-BE")
 
     private val TIME: DateTimeFormatter = formatter("HH:mm")
+    private val TIME_SECONDS: DateTimeFormatter = formatter("HH:mm:ss")
     private val DATE: DateTimeFormatter = formatter("dd/MM/yyyy")
     private val DAY_TIME: DateTimeFormatter = formatter("dd/MM HH:mm")
 
@@ -60,6 +61,9 @@ object PosDateTime {
 
     /** `14:05` */
     fun formatTime(instant: Instant): String = TIME.format(instant)
+
+    /** `14:05:09` */
+    fun formatTimeSeconds(instant: Instant): String = TIME_SECONDS.format(instant)
 
     /** `25/09/2026` */
     fun formatDate(instant: Instant): String = DATE.format(instant)

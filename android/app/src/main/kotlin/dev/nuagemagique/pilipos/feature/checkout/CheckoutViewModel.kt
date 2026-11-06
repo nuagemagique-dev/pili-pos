@@ -16,6 +16,7 @@ import dev.nuagemagique.pilipos.ui.state.isOpen
 import dev.nuagemagique.pilipos.ui.state.isUsable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -47,6 +48,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 /** How long the "slip not printed" warning stays, in milliseconds (`warnIfSlipFailed`: 8000). */
 internal const val SLIP_TOAST_MS: Long = 8000L
+
+/** How long the done step stays before it returns to the tables by itself (`DONE_AUTO_RETURN_MS` of the Vue view). */
+internal const val DONE_AUTO_RETURN_MS: Long = 2000L
 
 /**
  * State holder of the checkout screen, a port of the script of `ui/src/views/CheckoutView.vue`.
@@ -394,10 +398,26 @@ internal class CheckoutViewModel(
         effectChannel.trySend(CheckoutEffect.BackToOrder(routeOrderId))
     }
 
-    /** The finish button of the done step: the tables, for the next customer. */
+    /**
+     * The finish button, a tap on the done step, or its own timer: the tables, for the next customer. Only once per
+     * sale, whichever comes first.
+     */
     fun finish() {
-        own.update { it.copy(done = null) }
-        effectChannel.trySend(CheckoutEffect.NewOrder)
+        var leaving = false
+        own.update { local ->
+            leaving = local.step == CheckoutStep.DONE && local.done != null
+            if (leaving) local.copy(done = null) else local
+        }
+        if (leaving) effectChannel.trySend(CheckoutEffect.NewOrder)
+    }
+
+    /** The done step leaves by itself after [DONE_AUTO_RETURN_MS] unless it holds something to read or decide. */
+    private fun scheduleAutoReturn(done: CheckoutDone) {
+        if (done.needsAttention) return
+        viewModelScope.launch {
+            delay(DONE_AUTO_RETURN_MS)
+            if (own.value.done === done) finish()
+        }
     }
 
     // ── Taking a payment ──────────────────────────────────────────
@@ -546,6 +566,7 @@ internal class CheckoutViewModel(
         // The next customer starts from paper.
         delivery.reset()
         own.update { it.copy(step = CheckoutStep.DONE, taken = emptyList(), done = done) }
+        scheduleAutoReturn(done)
     }
 
     private fun failCheckout(text: String) {
@@ -654,11 +675,10 @@ internal class CheckoutViewModel(
         }
 
     private fun Own.prefilled(): Own =
-        // Cash starts empty (tap Exact or an amount); card and meal vouchers start at the amount due.
-        if (method == PaymentMethod.CASH || amounts.dueCents <= 0L) {
-            copy(digits = "", fresh = false)
-        } else {
-            copy(digits = digitsOf(amounts.dueCents), fresh = true)
+        // Every part starts at the exact amount: the rounded cash due for cash, the part for card and meal vouchers.
+        // The first key (or a quick amount) replaces it.
+        (if (method == PaymentMethod.CASH) amounts.roundedDueCents else amounts.dueCents).let { exact ->
+            if (exact <= 0L) copy(digits = "", fresh = false) else copy(digits = digitsOf(exact), fresh = true)
         }
 
     @Suppress("LongMethod")

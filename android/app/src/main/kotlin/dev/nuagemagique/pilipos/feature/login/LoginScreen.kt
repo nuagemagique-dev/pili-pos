@@ -59,6 +59,13 @@ internal data class FirstPinCallbacks(
     val onCancel: () -> Unit = {},
 )
 
+/** The actions of the status sheet of a start-up check (UX audit L2). */
+internal data class DeviceCallbacks(
+    val onOpen: (CheckId) -> Unit = {},
+    val onClose: () -> Unit = {},
+    val onRetry: () -> Unit = {},
+)
+
 /** Everything the operator can do on the login screen. */
 internal data class LoginCallbacks(
     val onTile: (User) -> Unit = {},
@@ -66,6 +73,7 @@ internal data class LoginCallbacks(
     val pin: PinCallbacks = PinCallbacks(),
     val insz: InszCallbacks = InszCallbacks(),
     val firstPin: FirstPinCallbacks = FirstPinCallbacks(),
+    val device: DeviceCallbacks = DeviceCallbacks(),
 )
 
 /** What the effects of [LoginViewModel] ask of the navigation: after a login, Tables replaces the login screen. */
@@ -106,6 +114,7 @@ internal fun LoginRoute(navigator: AppNavigator) {
                     onDone = model::onFirstPinDone,
                     onCancel = model::cancelFirstPin,
                 ),
+            device = DeviceCallbacks(onOpen = model::openDevice, onClose = model::closeDevice, onRetry = model::retryDevice),
         )
     PosUiRoot { LoginContent(state, callbacks) }
 }
@@ -125,11 +134,12 @@ internal fun LoginContent(
         Column(Modifier.fillMaxSize()) {
             if (state.training) TrainingBanner()
             Row(Modifier.fillMaxWidth().weight(1f)) {
-                LoginBrandColumn(state, Modifier.width(BrandWidth).fillMaxHeight())
+                LoginBrandColumn(state, callbacks.device.onOpen, Modifier.width(BrandWidth).fillMaxHeight())
                 LoginPeopleColumn(state, callbacks, Modifier.weight(1f).fillMaxHeight())
             }
         }
         state.firstPin?.let { FirstPinDialog(it, callbacks.firstPin) }
+        LoginDeviceSheet(state, callbacks.device)
     }
 }
 
