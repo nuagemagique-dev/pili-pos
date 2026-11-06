@@ -139,4 +139,39 @@ class CashDisplayTest {
         assertEquals(2400L, CashDisplay.subtotalBeforeDiscountCents(1200L, -1200L))
         assertEquals(1200L, CashDisplay.subtotalBeforeDiscountCents(1200L, 0L))
     }
+
+    // ── Split by dishes (UX audit P3) ─────────────────────────────
+
+    @Test
+    fun aLineNetSharedInUnitsPutsTheRemainderOnTheFirstUnits() {
+        assertEquals(listOf(334L, 333L, 333L), CashDisplay.unitShares(1000L, 3))
+        assertEquals(listOf(1152L), CashDisplay.unitShares(1152L, 1))
+        assertEquals(listOf(0L, 0L), CashDisplay.unitShares(0L, 2))
+        assertEquals(emptyList<Long>(), CashDisplay.unitShares(500L, 0))
+        for (net in listOf(-100L, -1L, 0L, 1L, 2999L, 3003L)) {
+            assertEquals(net, CashDisplay.unitShares(net, 3).sum())
+        }
+    }
+
+    @Test
+    fun theNextUnitsCostWhatTheirSharesSayAfterTheUnitsPaid() {
+        // 29,99 in 3 units: 10,00 + 10,00 + 9,99.
+        assertEquals(1000L, CashDisplay.unitsCents(2999L, 3, paidUnits = 0, units = 1))
+        assertEquals(1999L, CashDisplay.unitsCents(2999L, 3, paidUnits = 1, units = 2))
+        assertEquals(999L, CashDisplay.unitsCents(2999L, 3, paidUnits = 2, units = 5))
+        assertEquals(0L, CashDisplay.unitsCents(2999L, 3, paidUnits = 3, units = 1))
+    }
+
+    @Test
+    fun aLineNetIsItsGrossLessItsDiscountAndAWeighingCountsForTheScalesAmount() {
+        assertEquals(2999L, CashDisplay.lineNetCents(1000L, null, 3, -1L))
+        assertEquals(0L, CashDisplay.lineNetCents(250L, null, 2, -500L))
+        assertEquals(1234L, CashDisplay.lineNetCents(2000L, 1234L, 1, 0L))
+    }
+
+    @Test
+    fun theDifferenceOfTwoRoundedTotalsIsWhatAPartHandsOver() {
+        assertEquals(1005L, CashDisplay.differenceCents(1005L, 0L))
+        assertEquals(1000L, CashDisplay.differenceCents(2005L, 1005L))
+    }
 }

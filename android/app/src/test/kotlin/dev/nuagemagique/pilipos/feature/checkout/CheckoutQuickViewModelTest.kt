@@ -291,11 +291,11 @@ class CheckoutQuickViewModelTest {
             val r = started(1_486)
 
             assertFalse(r.state.showRest)
-            assertEquals(listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER), r.state.offeredMethods)
+            assertEquals(listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER), r.state.methods)
         }
 
     @Test
-    fun aMealVoucherPartLeavesARestWithEveryMethodStillOfferedAndCashPreselected() =
+    fun aMealVoucherPartLeavesARestWithEveryMethodStillOfferedAndTheMealVoucherKept() =
         runTest {
             val r = started(1_486)
 
@@ -305,10 +305,15 @@ class CheckoutQuickViewModelTest {
             runCurrent()
 
             assertTrue(r.state.showRest)
-            assertEquals(335L, r.state.amounts.restShownCents)
-            assertEquals(listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER), r.state.offeredMethods)
-            assertEquals(PaymentMethod.CASH, r.state.method)
+            assertEquals(listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER), r.state.methods)
+            // The method of the part taken stays selected (UX audit P3): the rest is exact until cash is chosen.
+            assertEquals(PaymentMethod.MEAL_VOUCHER, r.state.method)
+            assertEquals(334L, r.state.amounts.restShownCents)
+            assertEquals(334L, r.state.entryCents)
+            r.model.selectMethod(PaymentMethod.CASH)
+            runCurrent()
             // Cash: the exact rest with the engine's rounding, ready to collect.
+            assertEquals(335L, r.state.amounts.restShownCents)
             assertEquals(335L, r.state.entryCents)
             assertTrue(r.state.canValidate)
         }
@@ -339,7 +344,7 @@ class CheckoutQuickViewModelTest {
         }
 
     @Test
-    fun cashIsNotOfferedAgainOnceACashPartIsTaken() =
+    fun cashStaysOfferedAndSelectedOnceACashPartIsTaken() =
         runTest {
             val r = started(6_031)
 
@@ -348,9 +353,8 @@ class CheckoutQuickViewModelTest {
             runCurrent()
 
             assertTrue(r.state.showRest)
-            assertTrue(r.state.hasCashPart)
-            assertEquals(listOf(PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER), r.state.offeredMethods)
-            assertEquals(PaymentMethod.CARD, r.state.method)
+            assertEquals(listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER), r.state.methods)
+            assertEquals(PaymentMethod.CASH, r.state.method)
         }
 
     @Test

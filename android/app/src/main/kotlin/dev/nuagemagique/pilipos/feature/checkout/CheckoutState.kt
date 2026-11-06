@@ -4,6 +4,7 @@ import dev.nuagemagique.pilipos.ui.components.AmountEntryState
 import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.DishUnits
 import uniffi.pos_ffi.CartLine
 import uniffi.pos_ffi.DeliveryOutcome
 import uniffi.pos_ffi.EftPayment
@@ -34,8 +35,15 @@ internal data class VoucherDialogState(
     val busy: Boolean = false,
 )
 
-/** How many equal parts a sale can be split in (`v-for="n in 5"`). */
-internal const val SPLIT_MAX: Int = 5
+/** The equal parts with a button of their own: 1 to 4 (the Vue `SPLIT_QUICK_MAX`). */
+internal const val SPLIT_QUICK_MAX: Int = 4
+
+/** "Autre": any number of equal parts, 2 to 20, on a pad (the Vue `SPLIT_OTHER_MIN` and `SPLIT_OTHER_MAX`). */
+internal const val SPLIT_OTHER_MIN: Int = 2
+internal const val SPLIT_OTHER_MAX: Int = 20
+
+/** How the bill is shared: in equal parts, or by dishes (UX audit P3). */
+internal enum class SplitMode { EQUAL, DISHES }
 
 /**
  * One part already taken. [cents] is what the part pays (for cash: the part, not the rounded amount handed over),
@@ -54,6 +62,10 @@ internal data class TakenPart(
     /** A gift voucher part: the voucher it redeems, and its masked code. */
     val giftVoucherId: Long? = null,
     val codeMasked: String? = null,
+    /** The cash handed over for a cash part (shown in the recap with its change). */
+    val givenCents: Long = 0L,
+    /** The cart units this part pays when the sale is split by dishes; never sent to the engine. */
+    val units: List<DishUnits> = emptyList(),
 ) {
     /** The method the part is called by: a meal-voucher card is a meal voucher. */
     val displayMethod: PaymentMethod get() = if (mealVoucher) PaymentMethod.MEAL_VOUCHER else method
@@ -103,6 +115,8 @@ internal data class CheckoutAmounts(
     val quickAmountsCents: List<Long> = emptyList(),
     /** Parts are taken and nothing is left to pay: the sale only waits to be signed (the engine's rest is 0). */
     val allPaid: Boolean = false,
+    /** By dishes: every unit not paid yet is checked, so this part pays the whole rest. */
+    val everythingPicked: Boolean = false,
 )
 
 /** What the done screen shows; the cart and its total are gone by then, so everything is fixed at the sale. */
@@ -156,6 +170,12 @@ internal data class CheckoutUiState(
     val canTakePayment: Boolean = false,
     val step: CheckoutStep = CheckoutStep.PAY,
     val splitCount: Int = 1,
+    /** In equal parts or by dishes (UX audit P3). */
+    val splitMode: SplitMode = SplitMode.EQUAL,
+    /** By dishes: the units checked for the part being taken, per cart line id. */
+    val pick: Map<Long, Int> = emptyMap(),
+    /** The pad of "Autre" (any number of equal parts) is open. */
+    val otherSplitOpen: Boolean = false,
     val method: PaymentMethod = PaymentMethod.CASH,
     val taken: List<TakenPart> = emptyList(),
     /** The digits typed, read as cents like a payment terminal. */
@@ -217,18 +237,34 @@ internal data class CheckoutUiState(
     /** A part left a rest: the row "Reste 12,30 € :" is shown in front of the methods still allowed. */
     val showRest: Boolean get() = taken.isNotEmpty() && amounts.restCents > 0L
 
-    /** The methods offered as buttons: one cash part at most, so cash is not offered again once taken. */
-    val offeredMethods: List<PaymentMethod>
-        get() = methods.filterNot { it == PaymentMethod.CASH && hasCashPart }
+    /** The sale is split by dishes (UX audit P3). */
+    val dishMode: Boolean get() = splitMode == SplitMode.DISHES
 
-    /** True when a cash part has been taken already. */
-    val hasCashPart: Boolean get() = taken.any { it.method == PaymentMethod.CASH }
+    /** How many units are checked for the current part. */
+    val pickedTotal: Int get() = pick.values.sum()
+
+    /** "Autre" is highlighted for a number of parts the four buttons do not give. */
+    val otherActive: Boolean get() = !dishMode && splitCount > SPLIT_QUICK_MAX
+
+    /** The dish list of the recap: what each line has left, what was paid, what is checked. */
+    val dishRows: List<DishRow>
+        get() {
+            val lines = dishLinesOf(summary.lines)
+            val paid = paidUnits(taken)
+            return summary.lines.mapIndexed { index, line ->
+                DishRow(line, unitsLeft(lines[index], paid), paid[line.id] ?: 0, pick[line.id] ?: 0)
+            }
+        }
+
+    /** A part by dishes needs a unit checked (the sale only waiting to be signed excepted). */
+    val dishBlocked: Boolean
+        get() = dishMode && !amounts.allPaid && (pickedTotal == 0 || (amounts.dueCents == 0L && !amounts.everythingPicked))
 
     /** The index of the part being taken. */
     val partIndex: Int get() = taken.size
 
     /** True for the part that pays the rest. */
-    val isLastPart: Boolean get() = partIndex >= splitCount - 1
+    val isLastPart: Boolean get() = if (dishMode) amounts.everythingPicked else partIndex >= splitCount - 1
 
     /** True when the cash handed over covers the rounded due. */
     val canPayCash: Boolean get() = entryCents >= amounts.roundedDueCents
@@ -252,6 +288,7 @@ internal data class CheckoutUiState(
                 hasOrder &&
                 step == CheckoutStep.PAY &&
                 !eftBlocked &&
+                !dishBlocked &&
                 (amounts.allPaid || if (method == PaymentMethod.CASH) canPayCash else entryCents > 0L && !exactTooHigh)
 
     /** True when the "exact" shortcut is the current entry. */
@@ -263,6 +300,12 @@ internal data class CheckoutUiState(
 
     /** A split in more parts than cents would give a part of 0; only before the first part is taken (Vue `splitAllowed`). */
     fun splitAllowed(parts: Int): Boolean = taken.isEmpty() && (parts == 1 || parts.toLong() <= totalCents)
+
+    /** The by-dishes button: before the first part is taken, or while the sale is already split by dishes. */
+    val dishesAllowed: Boolean get() = dishMode || taken.isEmpty()
+
+    /** The "Autre" button: before the first part is taken, or while it is the split in use. */
+    val otherAllowed: Boolean get() = otherActive || taken.isEmpty()
 }
 
 /** What the view model asks of the navigation. */

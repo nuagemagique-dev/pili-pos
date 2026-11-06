@@ -62,6 +62,16 @@ data class HeldPart(
     /** A gift voucher part: the voucher it redeems, and its masked code. */
     val giftVoucherId: Long? = null,
     val codeMasked: String? = null,
+    /** The cash handed over for a cash part. */
+    val givenCents: Long = 0L,
+    /** The cart units this part pays when the sale is split by dishes (UX audit P3); empty otherwise. */
+    val units: List<DishUnits> = emptyList(),
+)
+
+/** Units of one cart line given to a part of a sale split by dishes. Never sent to the engine. */
+data class DishUnits(
+    val lineId: Long,
+    val count: Int,
 )
 
 /** The parts kept for one order. */

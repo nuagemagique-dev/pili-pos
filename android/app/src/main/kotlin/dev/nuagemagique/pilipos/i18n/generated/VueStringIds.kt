@@ -628,7 +628,17 @@ internal object VueStringIds {
         this["split_into"] = R.string.split_into
         this["equal_parts"] = R.string.equal_parts
         this["part_n"] = R.string.part_n
-        this["cash_part_taken"] = R.string.cash_part_taken
+        this["split_other"] = R.string.split_other
+        this["split_other_n"] = R.string.split_other_n
+        this["split_other_title"] = R.string.split_other_title
+        this["split_dishes"] = R.string.split_dishes
+        this["dish_pick_hint"] = R.string.dish_pick_hint
+        this["dish_picked"] = R.string.dish_picked
+        this["dish_paid"] = R.string.dish_paid
+        this["dish_paid_of"] = R.string.dish_paid_of
+        this["dish_less"] = R.string.dish_less
+        this["dish_more"] = R.string.dish_more
+        this["part_cash_detail"] = R.string.part_cash_detail
         this["back_to_order"] = R.string.back_to_order
         this["parts_kept"] = R.string.parts_kept
         this["parts_dropped"] = R.string.parts_dropped
@@ -762,6 +772,9 @@ internal object VueStringIds {
         this["invoice_field_street"] = R.string.invoice_field_street
         this["invoice_field_postal_code"] = R.string.invoice_field_postal_code
         this["invoice_field_city"] = R.string.invoice_field_city
+    }
+
+    private fun MutableMap<String, Int>.part3() {
         this["invoice_field_country"] = R.string.invoice_field_country
         this["invoice_peppol_registered"] = R.string.invoice_peppol_registered
         this["invoice_peppol_not_registered"] = R.string.invoice_peppol_not_registered
@@ -772,9 +785,6 @@ internal object VueStringIds {
         this["invoice_continue"] = R.string.invoice_continue
         this["invoice_preview_customer"] = R.string.invoice_preview_customer
         this["invoice_preview_tickets"] = R.string.invoice_preview_tickets
-    }
-
-    private fun MutableMap<String, Int>.part3() {
         this["invoice_preview_lines"] = R.string.invoice_preview_lines
         this["invoice_preview_vat"] = R.string.invoice_preview_vat
         this["invoice_vat_base"] = R.string.invoice_vat_base
@@ -1015,6 +1025,9 @@ internal object VueStringIds {
         this["quick_notes_add_title"] = R.string.quick_notes_add_title
         this["quick_notes_full"] = R.string.quick_notes_full
         this["quick_notes_up"] = R.string.quick_notes_up
+    }
+
+    private fun MutableMap<String, Int>.part4() {
         this["quick_notes_down"] = R.string.quick_notes_down
         this["quick_notes_remove"] = R.string.quick_notes_remove
         this["quick_notes_save"] = R.string.quick_notes_save
@@ -1025,9 +1038,6 @@ internal object VueStringIds {
         this["courses_note"] = R.string.courses_note
         this["courses_categories"] = R.string.courses_categories
         this["courses_no_categories"] = R.string.courses_no_categories
-    }
-
-    private fun MutableMap<String, Int>.part4() {
         this["courses_save"] = R.string.courses_save
         this["courses_saved"] = R.string.courses_saved
         this["alerts_title"] = R.string.alerts_title

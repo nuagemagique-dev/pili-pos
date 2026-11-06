@@ -108,15 +108,16 @@ class CheckoutEftViewModelTest {
             assertEquals(2, overlay.parts)
             coVerify(exactly = 0) { r.f.engine.checkout(any(), any(), any()) }
 
-            // Approved: the part is locked and cash takes the rest of the split sale.
+            // Approved: the part is locked; the card stays selected, cash takes the rest of the split sale.
             gate.complete(eftPayment(12, EFT_APPROVED, 1_000))
             runCurrent()
             assertEquals(CheckoutStep.PAY, r.state.step)
             assertEquals(listOf(true), r.state.taken.map { it.locked })
             assertEquals("Bancontact", r.state.taken.single().brand)
-            assertEquals(PaymentMethod.CASH, r.state.method)
+            assertEquals(PaymentMethod.CARD, r.state.method)
             assertEquals(1_000L, r.state.amounts.restCents)
 
+            r.model.selectMethod(PaymentMethod.CASH)
             r.type("1000")
             r.model.validate()
             runCurrent()

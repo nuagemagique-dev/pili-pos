@@ -287,12 +287,16 @@ class CheckoutViewModelTest {
             coVerify(exactly = 0) { r.f.engine.checkout(any(), any(), any()) }
             assertEquals(listOf(TakenPart(PaymentMethod.MEAL_VOUCHER, 500L, 0L)), r.state.taken)
             assertEquals(652L, r.state.amounts.restCents)
-            assertEquals(PaymentMethod.CASH, r.state.method)
+            // The method stays selected for the next part (UX audit P3): the rest is exact until cash is chosen.
+            assertEquals(PaymentMethod.MEAL_VOUCHER, r.state.method)
+            assertEquals(652L, r.state.amounts.restShownCents)
+            r.model.selectMethod(PaymentMethod.CASH)
+            runCurrent()
             assertEquals(650L, r.state.amounts.restShownCents)
         }
 
     @Test
-    fun cashIsRefusedOnceACashPartIsTaken() =
+    fun cashCanBeTakenAgainAfterACashPartAndStaysSelected() =
         runTest {
             val r = started(6_031)
             r.model.selectSplit(2)
@@ -300,10 +304,10 @@ class CheckoutViewModelTest {
             r.model.validate()
             runCurrent()
 
-            assertEquals(PaymentMethod.CARD, r.state.method)
+            assertEquals(PaymentMethod.CASH, r.state.method)
             r.model.selectMethod(PaymentMethod.CASH)
-            assertEquals(PaymentMethod.CARD, r.state.method)
-            assertTrue(r.state.hasCashPart)
+            assertEquals(PaymentMethod.CASH, r.state.method)
+            assertEquals(1, r.state.taken.size)
         }
 
     // ── Split ─────────────────────────────────────────────────────
@@ -331,22 +335,26 @@ class CheckoutViewModelTest {
             r.model.validate()
             runCurrent()
             assertEquals(1, r.state.taken.size)
-            assertEquals(PaymentMethod.CASH, r.state.method)
+            // The card stays selected for the next part.
+            assertEquals(PaymentMethod.CARD, r.state.method)
             assertEquals(4_020L, r.state.amounts.restCents)
             assertEquals(2_010L, r.state.amounts.dueCents)
 
             // Part 2: cash for its share, taken before the last part.
+            r.model.selectMethod(PaymentMethod.CASH)
             r.type("2010")
             r.model.validate()
             runCurrent()
             assertEquals(2, r.state.taken.size)
-            assertEquals(PaymentMethod.CARD, r.state.method)
+            // Cash stays selected: several cash parts are allowed.
+            assertEquals(PaymentMethod.CASH, r.state.method)
             assertEquals(2_010L, r.state.amounts.restCents)
-            assertEquals(2_010L, r.state.entryCents)
             assertEquals(CheckoutStep.PAY, r.state.step)
             coVerify(exactly = 0) { r.f.engine.checkout(any(), any(), any()) }
 
             // Part 3: card for what is left; the sale goes out with the cash part last and without amount.
+            r.model.selectMethod(PaymentMethod.CARD)
+            assertEquals(2_010L, r.state.entryCents)
             r.model.validate()
             runCurrent()
             coVerify(exactly = 1) {
@@ -370,6 +378,10 @@ class CheckoutViewModelTest {
             r.model.validate()
             runCurrent()
 
+            // The card stays selected; the last part is paid in cash.
+            assertEquals(PaymentMethod.CARD, r.state.method)
+            r.model.selectMethod(PaymentMethod.CASH)
+            runCurrent()
             assertEquals(501L, r.state.amounts.restCents)
             assertEquals(501L, r.state.amounts.dueCents)
             assertEquals(500L, r.state.amounts.roundedDueCents)

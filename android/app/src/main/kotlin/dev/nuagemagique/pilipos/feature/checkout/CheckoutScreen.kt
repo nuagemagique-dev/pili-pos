@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -37,6 +38,8 @@ import dev.nuagemagique.pilipos.feature.webshop.WebshopRoutes
 import dev.nuagemagique.pilipos.nav.AppNavigator
 import dev.nuagemagique.pilipos.ui.components.DeliveryOutcomePanel
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
+import dev.nuagemagique.pilipos.ui.components.NumberKeypad
+import dev.nuagemagique.pilipos.ui.components.NumberKeypadSpec
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.TicketMediumKeypad
 import dev.nuagemagique.pilipos.ui.components.TicketMediumPickerState
@@ -65,6 +68,18 @@ private val ChangeFontSize = 72.sp
 internal data class CheckoutCallbacks(
     val onMethod: (PaymentMethod) -> Unit = {},
     val onSplit: (Int) -> Unit = {},
+    /** "Autre": open the pad for any number of equal parts. */
+    val onSplitOther: () -> Unit = {},
+    /** The pad of "Autre" gave a number of equal parts. */
+    val onSplitOtherConfirm: (Int) -> Unit = {},
+    /** The pad of "Autre" was closed. */
+    val onSplitOtherCancel: () -> Unit = {},
+    /** "Par plats": split the bill by dishes. */
+    val onSplitDishes: () -> Unit = {},
+    /** A tap on a dish of the list: every unit left is checked, or none. */
+    val onDishToggle: (Long) -> Unit = {},
+    /** The minus (-1) and plus (+1) of a dish of several units. */
+    val onDishStep: (Long, Int) -> Unit = { _, _ -> },
     val onKey: (NumPadKey) -> Unit = {},
     val onExact: () -> Unit = {},
     val onQuick: (Long) -> Unit = {},
@@ -117,27 +132,7 @@ internal fun CheckoutRoute(
             }
         }
     }
-    val callbacks =
-        CheckoutCallbacks(
-            onMethod = model::selectMethod,
-            onSplit = model::selectSplit,
-            onKey = model::pressKey,
-            onExact = model::setExact,
-            onQuick = model::setQuickAmount,
-            onClearParts = model::clearParts,
-            onBack = model::back,
-            onValidate = model::validate,
-            onFinish = model::finish,
-            onPaper = model::chooseDeliveryPaper,
-            onCardManual = model::setCardManual,
-            onVerify = model::verifyOpen,
-            onSendHeld = model::sendHeldNow,
-            onVoucherKey = model::voucherKey,
-            onVoucherLookup = model::lookupVoucher,
-            onVoucherApply = model::applyVoucher,
-            onVoucherCancel = model::closeVoucher,
-            onPrintMissing = model::printMissingOriginal,
-        )
+    val callbacks = remember(model) { callbacksOf(model) }
     PosScaffold(
         area = HeaderArea.CHECKOUT,
         navigator = navigator,
@@ -150,12 +145,41 @@ internal fun CheckoutRoute(
                 onPaper = model::chooseDeliveryPaper,
             )
             EftOverlayHost(entry.eft())
-            state.voucher?.let { GiftVoucherDialog(it, state.amounts.restCents, callbacks) }
+            CheckoutDialogs(state, callbacks)
         },
     ) {
         CheckoutContent(state, callbacks, picker)
     }
 }
+
+/** The screen's callbacks, each one a method of [model]. */
+private fun callbacksOf(model: CheckoutViewModel) =
+    CheckoutCallbacks(
+        onMethod = model::selectMethod,
+        onSplit = model::selectSplit,
+        onSplitOther = model::openOtherSplit,
+        onSplitOtherConfirm = model::confirmOtherSplit,
+        onSplitOtherCancel = model::closeOtherSplit,
+        onSplitDishes = model::selectDishes,
+        onDishToggle = model::toggleDish,
+        onDishStep = model::stepDish,
+        onKey = model::pressKey,
+        onExact = model::setExact,
+        onQuick = model::setQuickAmount,
+        onClearParts = model::clearParts,
+        onBack = model::back,
+        onValidate = model::validate,
+        onFinish = model::finish,
+        onPaper = model::chooseDeliveryPaper,
+        onCardManual = model::setCardManual,
+        onVerify = model::verifyOpen,
+        onSendHeld = model::sendHeldNow,
+        onVoucherKey = model::voucherKey,
+        onVoucherLookup = model::lookupVoucher,
+        onVoucherApply = model::applyVoucher,
+        onVoucherCancel = model::closeVoucher,
+        onPrintMissing = model::printMissingOriginal,
+    )
 
 /**
  * The checkout screen, stateless, laid out for 1920 x 1080 dp: the payment panel (methods, split, entry, ticket
@@ -180,6 +204,29 @@ internal fun CheckoutContent(
                 PayPanel(state, callbacks, picker, Modifier.weight(1f).fillMaxHeight())
                 SummaryPanel(state, callbacks, Modifier.width(PiliTheme.dimens.cartWidth).fillMaxHeight())
             }
+    }
+}
+
+/** The dialogs of the pay step, drawn in the scaffold's overlay: the gift voucher code and the pad of "Autre". */
+@Composable
+internal fun CheckoutDialogs(
+    state: CheckoutUiState,
+    callbacks: CheckoutCallbacks,
+) {
+    state.voucher?.let { GiftVoucherDialog(it, state.amounts.restCents, callbacks) }
+    if (state.otherSplitOpen) {
+        NumberKeypad(
+            spec =
+                NumberKeypadSpec(
+                    tag = "checkout_other",
+                    title = vueText("split_other_title"),
+                    maxDigits = 2,
+                    min = SPLIT_OTHER_MIN.toLong(),
+                    max = SPLIT_OTHER_MAX.toLong(),
+                ),
+            onConfirm = { callbacks.onSplitOtherConfirm(it.toIntOrNull() ?: 0) },
+            onCancel = callbacks.onSplitOtherCancel,
+        )
     }
 }
 

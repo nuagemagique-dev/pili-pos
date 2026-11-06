@@ -11,6 +11,7 @@ import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.ProductLabelMode
+import dev.nuagemagique.pilipos.ui.state.DishUnits
 import dev.nuagemagique.pilipos.ui.state.HeldPart
 import dev.nuagemagique.pilipos.ui.state.ProductLabel
 import dev.nuagemagique.pilipos.ui.state.isOpen
@@ -103,6 +104,9 @@ internal class CheckoutViewModel(
     private data class Own(
         val step: CheckoutStep = CheckoutStep.PAY,
         val splitCount: Int = 1,
+        val splitMode: SplitMode = SplitMode.EQUAL,
+        val pick: Map<Long, Int> = emptyMap(),
+        val otherSplitOpen: Boolean = false,
         val method: PaymentMethod = PaymentMethod.CASH,
         val taken: List<TakenPart> = emptyList(),
         val digits: String = "",
@@ -242,12 +246,11 @@ internal class CheckoutViewModel(
 
     // ── Choices of the operator ───────────────────────────────────
 
-    /** The method buttons: cash is refused once a cash part is taken (Vue `selectMethod`). */
+    /** The method buttons (Vue `selectMethod`); several cash parts are allowed, they are merged into one cash line. */
     fun selectMethod(method: PaymentMethod) {
         val local = own.value
         val usable = local.step == CheckoutStep.PAY && method in snapshot().methods
-        val cashTaken = method == PaymentMethod.CASH && local.taken.any { it.method == PaymentMethod.CASH }
-        if (!usable || cashTaken) return
+        if (!usable) return
         if (method == PaymentMethod.GIFT_VOUCHER) {
             // The gift voucher method opens its dialog; the selected method stays as it is.
             own.update { it.copy(voucher = VoucherDialogState()) }
@@ -257,18 +260,65 @@ internal class CheckoutViewModel(
         }
     }
 
-    /** The split buttons: [parts] equal parts, only before the first part is taken (Vue `selectSplit`). */
+    /** The split buttons: [parts] equal parts (1 to 20), only before the first part is taken (Vue `selectSplit`). */
     fun selectSplit(parts: Int) {
         val local = own.value
         val total = order.current.value?.totalCents
         val allowed =
             total != null &&
                 local.step == CheckoutStep.PAY &&
-                parts in 1..SPLIT_MAX &&
+                parts in 1..SPLIT_OTHER_MAX &&
                 local.taken.isEmpty() &&
                 (parts == 1 || parts.toLong() <= total)
         if (!allowed) return
-        own.update { it.copy(splitCount = parts) }
+        own.update { it.copy(splitCount = parts, splitMode = SplitMode.EQUAL, pick = emptyMap(), otherSplitOpen = false) }
+        launchRecompute(prefill = true)
+    }
+
+    /** "Autre": opens the pad for any number of equal parts, only before the first part is taken. */
+    fun openOtherSplit() {
+        val local = own.value
+        if (local.step != CheckoutStep.PAY || !(local.taken.isEmpty() || local.splitCount > SPLIT_QUICK_MAX)) return
+        own.update { it.copy(otherSplitOpen = true) }
+    }
+
+    /** The pad of "Autre" was closed without a number. */
+    fun closeOtherSplit() {
+        own.update { it.copy(otherSplitOpen = false) }
+    }
+
+    /** The pad of "Autre" gave [parts] equal parts (2 to 20). */
+    fun confirmOtherSplit(parts: Int) {
+        own.update { it.copy(otherSplitOpen = false) }
+        if (parts in SPLIT_OTHER_MIN..SPLIT_OTHER_MAX) selectSplit(parts)
+    }
+
+    /** "Par plats": the cart lines are checked unit by unit for each part, only before the first part is taken. */
+    fun selectDishes() {
+        val local = own.value
+        if (local.step != CheckoutStep.PAY || local.taken.isNotEmpty() || local.splitMode == SplitMode.DISHES) return
+        own.update { it.copy(splitMode = SplitMode.DISHES, splitCount = 1, pick = emptyMap()) }
+        launchRecompute(prefill = true)
+    }
+
+    /** A tap on a dish: every unit left is checked, or none when all of them already were. */
+    fun toggleDish(lineId: Long) = changeDish(lineId) { pick, left -> toggledUnits(pick, lineId, left) }
+
+    /** The minus and plus of a dish of several units: one unit more or less for this part. */
+    fun stepDish(
+        lineId: Long,
+        delta: Int,
+    ) = changeDish(lineId) { pick, left -> withUnits(pick, lineId, left, (pick[lineId] ?: 0) + delta) }
+
+    private fun changeDish(
+        lineId: Long,
+        change: (Map<Long, Int>, Int) -> Map<Long, Int>,
+    ) {
+        val local = own.value
+        if (local.step != CheckoutStep.PAY || local.splitMode != SplitMode.DISHES) return
+        val line = dishLinesOf(order.lines.value).firstOrNull { it.id == lineId } ?: return
+        val left = unitsLeft(line, paidUnits(local.taken))
+        own.update { it.copy(pick = change(it.pick, left)) }
         launchRecompute(prefill = true)
     }
 
@@ -299,7 +349,9 @@ internal class CheckoutViewModel(
     /** Forgets the parts taken and goes back to cash (Vue `clearParts`); a card the terminal charged stays. */
     fun clearParts() {
         if (own.value.step != CheckoutStep.PAY) return
-        own.update { it.copy(taken = it.taken.filter { part -> part.locked }, error = null, method = PaymentMethod.CASH) }
+        own.update {
+            it.copy(taken = it.taken.filter { part -> part.locked }, pick = emptyMap(), error = null, method = PaymentMethod.CASH)
+        }
         launchRecompute(prefill = true)
     }
 
@@ -403,14 +455,14 @@ internal class CheckoutViewModel(
                 changeCents = 0L,
                 giftVoucherId = voucher.id,
                 codeMasked = voucher.codeMasked,
+                units = currentUnits(snapshot),
             )
         if (cents >= snapshot.amounts.restCents) {
             startCheckout(snapshot.taken + part, snapshot.totalCents)
             return
         }
-        // One cash part at most; otherwise back to cash, the default.
-        val nextMethod = if (snapshot.hasCashPart) PaymentMethod.CARD else PaymentMethod.CASH
-        own.update { it.copy(taken = snapshot.taken + part, method = nextMethod) }
+        // The method selected stays (a voucher is not a method of its own).
+        own.update { it.copy(taken = snapshot.taken + part, pick = emptyMap()) }
         launchRecompute(prefill = true)
     }
 
@@ -456,34 +508,29 @@ internal class CheckoutViewModel(
             startCheckout(snapshot.taken, snapshot.totalCents)
             return
         }
-        val isCash = snapshot.method == PaymentMethod.CASH
+        val units = currentUnits(snapshot)
         val part =
-            if (isCash) {
+            if (snapshot.method == PaymentMethod.CASH) {
                 TakenPart(
                     method = PaymentMethod.CASH,
                     cents = snapshot.amounts.dueCents,
                     changeCents = snapshot.changeCents,
+                    givenCents = snapshot.entryCents,
+                    units = units,
                 )
             } else {
-                TakenPart(snapshot.method, snapshot.entryCents, 0L)
+                TakenPart(snapshot.method, snapshot.entryCents, 0L, units = units)
             }
         if (snapshot.viaTerminal) {
-            takeOnTerminal(snapshot, part.cents)
+            takeOnTerminal(snapshot, part.cents, units)
             return
         }
         if (part.cents >= snapshot.amounts.restCents) {
             startCheckout(snapshot.taken + part, snapshot.totalCents)
             return
         }
-        val next = snapshot.taken + part
-        // One cash part at most; otherwise back to cash, the default.
-        val nextMethod =
-            if (next.any { it.method == PaymentMethod.CASH }) {
-                if (isCash) PaymentMethod.CARD else snapshot.method
-            } else {
-                PaymentMethod.CASH
-            }
-        own.update { it.copy(taken = next, method = nextMethod) }
+        // The method stays selected for the next part (UX audit P3); the "Reste" row offers the others.
+        own.update { it.copy(taken = snapshot.taken + part, pick = emptyMap()) }
         launchRecompute(prefill = true)
     }
 
@@ -495,6 +542,7 @@ internal class CheckoutViewModel(
     private fun takeOnTerminal(
         snapshot: CheckoutUiState,
         cents: Long,
+        units: List<DishUnits>,
     ) {
         if (!eftBusy.compareAndSet(false, true)) return
         viewModelScope.launch {
@@ -502,16 +550,17 @@ internal class CheckoutViewModel(
                 val count = if (snapshot.splitCount > 1) snapshot.splitCount else 1
                 val paid = eft.charge(routeOrderId, cents, snapshot.partIndex + 1, count) ?: return@launch
                 adopt(paid)
+                // The part by dishes keeps the units it pays.
+                own.update { local ->
+                    local.copy(
+                        taken = local.taken.map { if (it.eftPaymentId == paid.id && units.isNotEmpty()) it.copy(units = units) else it },
+                        pick = emptyMap(),
+                    )
+                }
                 recompute(prefill = true)
                 val now = snapshot()
-                if (now.amounts.allPaid) {
-                    startCheckout(now.taken, now.totalCents)
-                } else {
-                    // One cash part at most; otherwise back to cash, the default.
-                    val method = if (now.hasCashPart) PaymentMethod.CARD else PaymentMethod.CASH
-                    own.update { it.copy(method = method) }
-                    recompute(prefill = true)
-                }
+                // Otherwise the method stays selected for the next part.
+                if (now.amounts.allPaid) startCheckout(now.taken, now.totalCents)
             } finally {
                 eftBusy.set(false)
             }
@@ -552,15 +601,19 @@ internal class CheckoutViewModel(
         }
         eft.payments.value.filter { it.isUsable() }.forEach { adopt(it) }
         val locked = CashDisplay.sumCents(own.value.taken.map { it.cents })
-        val kept = reconcileHeld(order.heldPartsFor(routeOrderId), total, locked)
+        val reconciled = reconcileHeld(order.heldPartsFor(routeOrderId), total, locked)
+        // A part by dishes needs its units to still be in the cart.
+        val unitsGone = !unitsFit(dishLinesOf(order.lines.value), reconciled.parts.map { it.units })
+        val kept = if (unitsGone) ReconciledParts(emptyList(), dropped = true) else reconciled
         if (kept.dropped) {
             entry.toasts().show(entry.catalog().text("parts_dropped", settings.language.value), ToastVariant.Warning, SLIP_TOAST_MS)
         }
         own.update { local ->
-            val taken = local.taken + kept.parts.map { it.toTaken() }
-            // One cash part at most: cash is not offered again once a part took it.
-            val cashTaken = taken.any { it.method == PaymentMethod.CASH }
-            local.copy(taken = taken, method = if (cashTaken && local.method == PaymentMethod.CASH) PaymentMethod.CARD else local.method)
+            val byDishes = kept.parts.any { it.units.isNotEmpty() }
+            local.copy(
+                taken = local.taken + kept.parts.map { it.toTaken() },
+                splitMode = if (byDishes) SplitMode.DISHES else local.splitMode,
+            )
         }
         restored = true
         if (kept.dropped) order.holdParts(routeOrderId, emptyList())
@@ -613,8 +666,8 @@ internal class CheckoutViewModel(
             CheckoutDone(
                 ticketLabel = result.ticket?.ticketTypeLabel,
                 totalCents = totalCents,
-                // One cash part at most: the change is that part's, no sum.
-                changeCents = parts.firstOrNull { it.method == PaymentMethod.CASH }?.changeCents ?: 0L,
+                // The change of the last cash part: the earlier ones were handed back when they were taken.
+                changeCents = parts.lastOrNull { it.method == PaymentMethod.CASH }?.changeCents ?: 0L,
                 fdmId = result.ticket?.fdmRef?.fdmId,
                 fdmConnected = result.fdmConnected,
                 delivery = result.delivery,
@@ -639,7 +692,11 @@ internal class CheckoutViewModel(
         }
     }
 
-    /** The parts as `checkout` takes them: the non-cash parts with their amount, then the cash part without one. */
+    /**
+     * The parts as `checkout` takes them: the non-cash parts with their amount, then ONE cash part without amount for
+     * all the cash parts taken: the signed sale has a single cash line, rounded once (spec v2.2 section 7.1). The
+     * units of a split by dishes are not part of the request.
+     */
     private fun payload(parts: List<TakenPart>): List<PaymentPart> {
         val list =
             parts
@@ -752,29 +809,69 @@ internal class CheckoutViewModel(
     ): CheckoutAmounts {
         val shares = CashDisplay.equalShares(total, local.splitCount)
         val partIndex = local.taken.size
-        val isLast = partIndex >= local.splitCount - 1
         val preview = previewAfter(total, local.taken, emptyList())
         val rest = cashRowOf(preview)
-        val due = if (isLast) rest else minOf(shares[partIndex], rest)
-        val cash = local.method == PaymentMethod.CASH
-        // The engine rounds the cash rest; a cash part before the last one is its share, rounded on its own.
-        val rounded =
+        val dishes = local.splitMode == SplitMode.DISHES
+        val lines = dishLinesOf(order.lines.value)
+        val paid = paidUnits(local.taken)
+        val everything = dishes && local.pick.values.sum() > 0 && allLeftPicked(lines, paid, local.pick)
+        val isLast = if (dishes) everything else partIndex >= local.splitCount - 1
+        val due =
             when {
-                !cash -> due
-                isLast -> preview.cashDueCents
-                else -> helpers.settlePreview(due, listOf(CASH_PART)).cashDueCents
+                dishes -> if (everything) rest else minOf(pickedCents(lines, paid, local.pick), rest)
+                isLast -> rest
+                else -> minOf(shares[partIndex], rest)
             }
+        val cash = local.method == PaymentMethod.CASH
+        // The sale is signed with ONE cash line, rounded once by the engine: each cash part hands over its share of
+        // that rounding (the difference of the rounded running cash totals), so the parts add up to the cash line.
+        val cashTaken = CashDisplay.sumCents(local.taken.filter { it.method == PaymentMethod.CASH }.map { it.cents })
+        val rounded = if (cash) cashDueAfter(cashTaken, due) else due
         return CheckoutAmounts(
             restCents = rest,
             dueCents = due,
             roundedDueCents = rounded,
-            restShownCents = if (cash && isLast) preview.cashDueCents else rest,
+            restShownCents = if (cash && isLast) cashDueAfter(cashTaken, rest) else rest,
             shares = shares,
-            chips = chipsFor(total, local, shares, rest),
+            chips = if (dishes) dishChips(local, due, rest) else chipsFor(total, local, shares, rest),
             quickAmountsCents = if (cash) CashDisplay.quickAmountsCents(rounded) else emptyList(),
             allPaid = local.taken.isNotEmpty() && rest == 0L,
+            everythingPicked = everything,
         )
     }
+
+    /**
+     * The cash to hand over for a cash part of [partCents] when [takenCents] of cash parts were taken before: the
+     * engine's rounding of the running cash total with the part, minus its rounding without it.
+     */
+    private suspend fun cashDueAfter(
+        takenCents: Long,
+        partCents: Long,
+    ): Long {
+        val before = if (takenCents > 0L) helpers.settlePreview(takenCents, listOf(CASH_PART)).cashDueCents else 0L
+        val running = CashDisplay.sumCents(listOf(takenCents, partCents))
+        val after = if (running > 0L) helpers.settlePreview(running, listOf(CASH_PART)).cashDueCents else 0L
+        return CashDisplay.differenceCents(after, before)
+    }
+
+    /** By dishes the parts to come are not known: the parts taken, the one being taken, and what stays after it. */
+    private fun dishChips(
+        local: Own,
+        due: Long,
+        rest: Long,
+    ): List<PartChip> {
+        val chips = local.taken.map { PartChip(ChipState.PAID, it.displayMethod, it.cents) }.toMutableList()
+        if (rest > 0L) {
+            chips += PartChip(ChipState.CURRENT, local.method, due)
+            val after = CashDisplay.differenceCents(rest, due)
+            if (after > 0L) chips += PartChip(ChipState.NEXT, null, after)
+        }
+        return if (chips.size > 1) chips else emptyList()
+    }
+
+    /** The units checked, as the list a part keeps; empty unless the sale is split by dishes. */
+    private fun currentUnits(snapshot: CheckoutUiState): List<DishUnits> =
+        if (snapshot.dishMode) pickedUnits(dishLinesOf(order.lines.value), snapshot.pick) else emptyList()
 
     /** Every part: taken, the current one, and the ones to come (Vue `partChips`). */
     private suspend fun chipsFor(
@@ -844,6 +941,9 @@ internal class CheckoutViewModel(
             canTakePayment = inputs.canTakePayment,
             step = local.step,
             splitCount = local.splitCount,
+            splitMode = local.splitMode,
+            pick = local.pick,
+            otherSplitOpen = local.otherSplitOpen,
             method = local.method,
             taken = local.taken,
             entry = AmountEntryState(local.digits),
@@ -875,9 +975,18 @@ internal class CheckoutViewModel(
             held: List<HeldCourse>,
         ): Int? = if (enabled) held.minOfOrNull { it.course } else null
 
-        fun TakenPart.toHeld(): HeldPart = HeldPart(method, cents, changeCents, giftVoucherId, codeMasked)
+        fun TakenPart.toHeld(): HeldPart = HeldPart(method, cents, changeCents, giftVoucherId, codeMasked, givenCents, units)
 
-        fun HeldPart.toTaken(): TakenPart = TakenPart(method, cents, changeCents, giftVoucherId = giftVoucherId, codeMasked = codeMasked)
+        fun HeldPart.toTaken(): TakenPart =
+            TakenPart(
+                method,
+                cents,
+                changeCents,
+                giftVoucherId = giftVoucherId,
+                codeMasked = codeMasked,
+                givenCents = givenCents,
+                units = units,
+            )
 
         /** A cash part: it has no amount and pays what is left. */
         val CASH_PART = PaymentPart(PaymentMethod.CASH, null)

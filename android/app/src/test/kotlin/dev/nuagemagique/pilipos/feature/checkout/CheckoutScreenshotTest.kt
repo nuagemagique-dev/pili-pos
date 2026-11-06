@@ -15,6 +15,7 @@ import dev.nuagemagique.pilipos.ui.scaffold.HeaderArea
 import dev.nuagemagique.pilipos.ui.scaffold.HeaderUiState
 import dev.nuagemagique.pilipos.ui.scaffold.PosScaffoldContent
 import dev.nuagemagique.pilipos.ui.scaffold.StatusLights
+import dev.nuagemagique.pilipos.ui.state.DishUnits
 import dev.nuagemagique.pilipos.ui.state.EFT_UNKNOWN
 import dev.nuagemagique.pilipos.ui.state.eftPayment
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
@@ -184,6 +185,37 @@ class CheckoutScreenshotTest {
                     ),
             ),
             "checkout_split",
+        )
+    }
+
+    @Test
+    fun dishes() {
+        // P3: the bill split by dishes: the soup paid by card, one Sushi Mix checked for the next part.
+        val taken = listOf(TakenPart(PaymentMethod.CARD, 450L, 0L, units = listOf(DishUnits(2, 1))))
+        capture(
+            base.copy(
+                splitMode = SplitMode.DISHES,
+                pick = mapOf(1L to 1),
+                method = PaymentMethod.CARD,
+                taken = taken,
+                entry = AmountEntryState("950"),
+                fresh = true,
+                amounts =
+                    CheckoutAmounts(
+                        restCents = 2_740L,
+                        dueCents = 950L,
+                        roundedDueCents = 950L,
+                        restShownCents = 2_740L,
+                        shares = listOf(3_190L),
+                        chips =
+                            listOf(
+                                PartChip(ChipState.PAID, PaymentMethod.CARD, 450L),
+                                PartChip(ChipState.CURRENT, PaymentMethod.CARD, 950L),
+                                PartChip(ChipState.NEXT, null, 1_790L),
+                            ),
+                    ),
+            ),
+            "checkout_dishes",
         )
     }
 

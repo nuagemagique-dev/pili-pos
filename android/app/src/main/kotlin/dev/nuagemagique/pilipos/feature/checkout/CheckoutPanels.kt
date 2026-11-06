@@ -4,6 +4,7 @@ package dev.nuagemagique.pilipos.feature.checkout
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,16 +12,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,6 +39,7 @@ import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.TicketMediumPicker
 import dev.nuagemagique.pilipos.ui.components.TicketMediumPickerState
 import dev.nuagemagique.pilipos.ui.components.defaultTicketMediumPickerTexts
+import dev.nuagemagique.pilipos.ui.format.BilingualName
 import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.LineAmount
 import dev.nuagemagique.pilipos.ui.format.bilingualName
@@ -53,6 +61,14 @@ import uniffi.pos_ffi.TicketDeliveryRequest
 
 private val MethodHeight = 80.dp
 private val SplitButtonWidth = 72.dp
+private val DishRowHeight = 64.dp
+private val DishTouch = 48.dp
+private val DishBorder = 2.dp
+private val DishCountWidth = 72.dp
+private const val DONE_ALPHA = 0.4f
+private const val STEP_DISABLED_ALPHA = 0.35f
+private val SplitOtherWidth = 128.dp
+private val SplitDishesWidth = 176.dp
 private val SplitHeight = 64.dp
 private val ChipMinHeight = 72.dp
 private val ExactHeight = 80.dp
@@ -164,7 +180,7 @@ private fun MethodRow(
                 modifier = Modifier.testTag("checkout_rest_label"),
             )
         }
-        state.offeredMethods.forEach { method ->
+        state.methods.forEach { method ->
             PiliButton(
                 text = methodLabel(method),
                 onClick = { callbacks.onMethod(method) },
@@ -175,7 +191,10 @@ private fun MethodRow(
     }
 }
 
-/** Split in 1 to 5 equal parts, only before the first part is taken (UX guide section 7.4). */
+/**
+ * Split in 1 to 4 equal parts, "Autre" (2 to 20 on a pad) or "Par plats" (the dishes checked for each part), only
+ * before the first part is taken (UX guide section 7.4, UX audit P3).
+ */
 @Composable
 private fun SplitRow(
     state: CheckoutUiState,
@@ -184,16 +203,30 @@ private fun SplitRow(
     val d = PiliTheme.dimens
     Row(horizontalArrangement = Arrangement.spacedBy(d.spaceSm), verticalAlignment = Alignment.CenterVertically) {
         Text(vueText("split_into"), style = PiliTheme.typography.label, color = PiliTheme.colors.textSecondary)
-        for (n in 1..SPLIT_MAX) {
+        for (n in 1..SPLIT_QUICK_MAX) {
             PiliButton(
                 text = n.toString(),
                 onClick = { callbacks.onSplit(n) },
-                variant = if (state.splitCount == n) PiliButtonVariant.Primary else PiliButtonVariant.Secondary,
-                enabled = state.splitCount == n || state.splitAllowed(n),
+                variant = if (!state.dishMode && state.splitCount == n) PiliButtonVariant.Primary else PiliButtonVariant.Secondary,
+                enabled = (!state.dishMode && state.splitCount == n) || state.splitAllowed(n),
                 modifier = Modifier.width(SplitButtonWidth).height(SplitHeight).testTag("checkout_split_$n"),
             )
         }
+        PiliButton(
+            text = if (state.otherActive) vueText("split_other_n", "n" to state.splitCount) else vueText("split_other"),
+            onClick = callbacks.onSplitOther,
+            variant = if (state.otherActive) PiliButtonVariant.Primary else PiliButtonVariant.Secondary,
+            enabled = state.otherAllowed,
+            modifier = Modifier.width(SplitOtherWidth).height(SplitHeight).testTag("checkout_split_other"),
+        )
         Text(vueText("equal_parts"), style = PiliTheme.typography.body, color = PiliTheme.colors.textSecondary)
+        PiliButton(
+            text = vueText("split_dishes"),
+            onClick = callbacks.onSplitDishes,
+            variant = if (state.dishMode) PiliButtonVariant.Primary else PiliButtonVariant.Secondary,
+            enabled = state.dishesAllowed,
+            modifier = Modifier.width(SplitDishesWidth).height(SplitHeight).testTag("checkout_split_dishes"),
+        )
     }
 }
 
@@ -383,9 +416,6 @@ private fun CardHints(
         color = c.textSecondary,
         modifier = Modifier.testTag("checkout_card_hint"),
     )
-    if (state.hasCashPart) {
-        Text(vueText("cash_part_taken"), style = t.body, color = c.textSecondary, modifier = Modifier.testTag("checkout_cash_taken"))
-    }
 }
 
 /** "Terminal" or "Saisie manuelle": the card part is charged on the linked terminal, or typed by hand (terminal down). */
@@ -486,11 +516,163 @@ internal fun SummaryPanel(
                     .padding(horizontal = PiliTheme.dimens.spaceMd),
             verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceSm),
         ) {
-            state.summary.lines.forEachIndexed { index, line ->
-                SummaryLine(line, state.summary.amounts.getOrNull(index), state)
+            if (state.dishMode) {
+                DishHint(state)
+                state.dishRows.forEachIndexed { index, row ->
+                    DishLine(row, state.summary.amounts.getOrNull(index), state, callbacks)
+                }
+            } else {
+                state.summary.lines.forEachIndexed { index, line ->
+                    SummaryLine(line, state.summary.amounts.getOrNull(index), state)
+                }
             }
         }
         SummaryFoot(state, callbacks)
+    }
+}
+
+/** "Cochez les plats de cette part", or how many units the part has. */
+@Composable
+private fun DishHint(state: CheckoutUiState) {
+    Text(
+        text = if (state.pickedTotal > 0) vueText("dish_picked", "n" to state.pickedTotal) else vueText("dish_pick_hint"),
+        style = PiliTheme.typography.body.copy(fontWeight = PiliTheme.typography.weightBold),
+        color = PiliTheme.colors.textSecondary,
+        modifier = Modifier.testTag("checkout_dish_hint"),
+    )
+}
+
+/**
+ * A dish of the split by dishes: a checkbox, the dish, its net, and for several units a minus, "picked / left" and
+ * a plus under it. A line with no unit left is greyed and cannot be checked (`dish-line` of the Vue view).
+ */
+@Composable
+private fun DishLine(
+    row: DishRow,
+    amount: LineAmount?,
+    state: CheckoutUiState,
+    callbacks: CheckoutCallbacks,
+) {
+    val c = PiliTheme.colors
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    val line = row.line
+    val name = bilingualName(line, LocalUiLanguage.current, state.labelMode)
+    val done = row.left == 0
+    val on = row.picked > 0
+    val fill = if (on) c.selectedBg else Color.Transparent
+    val ink = if (on) c.selectedFg else c.textPrimary
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .alpha(if (done) DONE_ALPHA else 1f)
+                .background(fill, RoundedCornerShape(d.radiusSm))
+                .toggleable(
+                    value = on && row.picked >= row.left,
+                    enabled = !done,
+                    role = Role.Checkbox,
+                    onValueChange = { callbacks.onDishToggle(line.id) },
+                ).heightIn(min = DishRowHeight)
+                .testTag("checkout_dish_${line.id}"),
+        horizontalArrangement = Arrangement.spacedBy(d.spaceSm),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(DishTouch)
+                .border(DishBorder, if (on) c.selectedFg else c.border, RoundedCornerShape(d.radiusSm))
+                .testTag("checkout_dish_check_${line.id}"),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (on) Text(if (row.picked >= row.left) "✓" else "–", style = t.title, color = ink)
+        }
+        DishLabel(row, name, on, ink, Modifier.weight(1f), callbacks)
+        Text(
+            text = (amount as? LineAmount.Total)?.let { formatCents(it.cents) } ?: "",
+            style = t.figure.copy(fontWeight = t.weightBold),
+            color = ink,
+            textAlign = TextAlign.End,
+        )
+    }
+}
+
+/** The name, the paid mention and the stepper of a dish. */
+@Composable
+private fun DishLabel(
+    row: DishRow,
+    name: BilingualName,
+    on: Boolean,
+    ink: Color,
+    modifier: Modifier,
+    callbacks: CheckoutCallbacks,
+) {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    val line = row.line
+    val done = row.left == 0
+    Column(modifier) {
+        Text(
+            text = "${uiText(R.string.ui_checkout_line_qty, "quantity" to line.quantity)} ${name.primary}",
+            style = t.body.copy(fontWeight = t.weightBold),
+            color = ink,
+        )
+        name.secondary?.let { Text(it, style = t.label, color = if (on) ink else c.textSecondary) }
+        if (row.paid > 0) {
+            val paid = if (done) vueText("dish_paid") else vueText("dish_paid_of", "paid" to row.paid, "n" to line.quantity)
+            Text(
+                text = paid,
+                style = t.label.copy(fontWeight = t.weightBold),
+                color = if (on) ink else c.accentSuccess,
+                modifier = Modifier.testTag("checkout_dish_paid_${line.id}"),
+            )
+        }
+        if (line.quantity > 1 && !done) DishStepper(row, ink, callbacks)
+    }
+}
+
+/** The minus, "picked / left" and plus of a dish of several units: one unit more or less for the part. */
+@Composable
+private fun DishStepper(
+    row: DishRow,
+    ink: Color,
+    callbacks: CheckoutCallbacks,
+) {
+    val d = PiliTheme.dimens
+    val t = PiliTheme.typography
+    val id = row.line.id
+    Row(horizontalArrangement = Arrangement.spacedBy(d.spaceSm), verticalAlignment = Alignment.CenterVertically) {
+        DishStep("−", vueText("dish_less"), row.picked > 0, "checkout_dish_minus_$id") { callbacks.onDishStep(id, -1) }
+        Text(
+            text = "${row.picked} / ${row.left}",
+            style = t.figure.copy(fontWeight = t.weightBold),
+            color = ink,
+            modifier = Modifier.width(DishCountWidth).testTag("checkout_dish_count_$id"),
+            textAlign = TextAlign.Center,
+        )
+        DishStep("+", vueText("dish_more"), row.picked < row.left, "checkout_dish_plus_$id") { callbacks.onDishStep(id, 1) }
+    }
+}
+
+@Composable
+private fun DishStep(
+    glyph: String,
+    description: String,
+    enabled: Boolean,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    val c = PiliTheme.colors
+    Box(
+        Modifier
+            .size(DishTouch)
+            .alpha(if (enabled) 1f else STEP_DISABLED_ALPHA)
+            .background(c.bgSurface, RoundedCornerShape(PiliTheme.dimens.radiusSm))
+            .clickable(enabled = enabled, role = Role.Button, onClickLabel = description, onClick = onClick)
+            .testTag(tag),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(glyph, style = PiliTheme.typography.title, color = c.textPrimary)
     }
 }
 
@@ -704,7 +886,13 @@ private fun TakenRow(
     val partName = vueText("part_n", "n" to (index + 1))
     val value = uiText(R.string.ui_checkout_paid_part, "amount" to formatCents(part.cents))
     if (!part.locked) {
-        val method = methodLabel(part.displayMethod) + (part.codeMasked?.let { " · $it" } ?: "")
+        val change =
+            if (part.method == PaymentMethod.CASH && part.changeCents > 0L) {
+                " · " + vueText("part_cash_detail", "given" to formatCents(part.givenCents), "change" to formatCents(part.changeCents))
+            } else {
+                ""
+            }
+        val method = methodLabel(part.displayMethod) + (part.codeMasked?.let { " · $it" } ?: "") + change
         val label = uiText(R.string.ui_checkout_part_label, "part" to partName, "method" to method)
         FootRow(label, value, "checkout_part_$index")
         return
@@ -786,7 +974,7 @@ private fun validateLabel(state: CheckoutUiState): String {
     val amount = formatCents(state.collectCents)
     return when {
         state.amounts.allPaid -> vueText("validate")
-        state.splitCount > 1 -> vueText("collect_part", "n" to (state.partIndex + 1), "amount" to amount)
+        state.splitCount > 1 || state.dishMode -> vueText("collect_part", "n" to (state.partIndex + 1), "amount" to amount)
         else -> vueText(collectKey(state.method), "amount" to amount)
     }
 }
