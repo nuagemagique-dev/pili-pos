@@ -7,6 +7,7 @@ import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_CODE_LENGTH
 import dev.nuagemagique.pilipos.ui.components.GIFT_VOUCHER_DEPARTMENT
 import dev.nuagemagique.pilipos.ui.components.NumPadKey
 import dev.nuagemagique.pilipos.ui.components.pressVoucherKey
+import dev.nuagemagique.pilipos.ui.components.voucherCodeFromScan
 import dev.nuagemagique.pilipos.ui.feedback.ToastVariant
 import dev.nuagemagique.pilipos.ui.format.CashDisplay
 import dev.nuagemagique.pilipos.ui.format.LineAmount
@@ -26,6 +27,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -235,6 +238,14 @@ internal class CheckoutViewModel(
                 .distinctUntilChanged()
                 .collect { if (it) refreshEft() }
         }
+        // The barcode reader belongs to the gift voucher dialog while it is open (UX audit P7).
+        viewModelScope.launch {
+            own
+                .map { local -> local.voucher != null }
+                .distinctUntilChanged()
+                .flatMapLatest { open -> if (open) entry.scans().claim() else emptyFlow() }
+                .collect { scanVoucher(it) }
+        }
         // A new order total (the order was read again): the amounts and the entry start over (Vue `watch totalCents`).
         viewModelScope.launch {
             order.current
@@ -414,11 +425,37 @@ internal class CheckoutViewModel(
         own.update { it.copy(giftVouchersEnabled = enabled) }
     }
 
-    /** A key of the code pad of the dialog: a change of the digits forgets the voucher found and the refusal. */
+    /**
+     * A key of the code pad of the dialog: a change of the digits forgets the voucher found and the refusal. Typing
+     * after a scan starts a new code, so the scanned one is never uncovered.
+     */
     fun voucherKey(key: NumPadKey) {
         own.update { local ->
             val dialog = local.voucher ?: return@update local
-            local.copy(voucher = dialog.copy(digits = pressVoucherKey(dialog.digits, key), found = null, error = null))
+            val from = if (dialog.scanned) "" else dialog.digits
+            local.copy(voucher = dialog.copy(digits = pressVoucherKey(from, key), found = null, error = null, scanned = false))
+        }
+    }
+
+    /**
+     * A barcode read while the dialog is open (UX audit P7): 12 digits are the code, looked up at once; anything else
+     * is refused with a message. A scan during a lookup, or of the voucher already found, is ignored (a reader can
+     * fire twice; the engine also limits the tries).
+     */
+    private fun scanVoucher(token: String) {
+        val dialog = own.value.voucher
+        val code = voucherCodeFromScan(token)
+        when {
+            dialog == null || dialog.busy -> Unit
+            code == null -> {
+                val text = entry.catalog().text("gv_scan_invalid", settings.language.value)
+                own.update { it.copy(voucher = dialog.copy(digits = "", found = null, error = text, scanned = false)) }
+            }
+            code == dialog.digits && dialog.found != null -> Unit
+            else -> {
+                own.update { it.copy(voucher = dialog.copy(digits = code, found = null, error = null, scanned = true)) }
+                lookupVoucher()
+            }
         }
     }
 

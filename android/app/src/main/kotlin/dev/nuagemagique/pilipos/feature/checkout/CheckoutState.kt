@@ -25,14 +25,16 @@ internal val TILL_METHODS: List<PaymentMethod> =
     listOf(PaymentMethod.CASH, PaymentMethod.CARD, PaymentMethod.MEAL_VOUCHER, PaymentMethod.GIFT_VOUCHER)
 
 /**
- * The state of the gift voucher dialog (`GiftVoucherDialog.vue`): the [digits] of the code typed, the voucher the
- * engine [found] for them, the text of a refusal and a lookup running.
+ * The state of the gift voucher dialog (`GiftVoucherDialog.vue`): the [digits] of the code typed or scanned, the
+ * voucher the engine [found] for them, the text of a refusal and a lookup running. A code that came from the barcode
+ * reader is [scanned]: it is shown masked, never written out (UX audit P7).
  */
 internal data class VoucherDialogState(
     val digits: String = "",
     val found: GiftVoucherView? = null,
     val error: String? = null,
     val busy: Boolean = false,
+    val scanned: Boolean = false,
 )
 
 /** The equal parts with a button of their own: 1 to 4 (the Vue `SPLIT_QUICK_MAX`). */

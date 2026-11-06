@@ -66,6 +66,8 @@
     <string name="method_gift_voucher">礼品券</string>
     <string name="gv_dialog_title">使用礼品券支付</string>
     <string name="gv_code_label">礼品券编号（12位）</string>
+    <string name="gv_scan_hint">或扫描礼品券上的条形码</string>
+    <string name="gv_scan_invalid">此条形码不是礼品券（应为12位数字）</string>
     <string name="gv_lookup">查询</string>
     <string name="gv_balance">余额</string>
     <string name="gv_expires">有效期至 {date}</string>

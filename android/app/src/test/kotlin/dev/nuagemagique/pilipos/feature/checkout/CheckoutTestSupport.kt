@@ -12,6 +12,7 @@ import dev.nuagemagique.pilipos.i18n.ErrorTexts
 import dev.nuagemagique.pilipos.i18n.FdmTexts
 import dev.nuagemagique.pilipos.i18n.MessageCatalog
 import dev.nuagemagique.pilipos.nav.AppNavigator
+import dev.nuagemagique.pilipos.ui.badge.ScanClaims
 import dev.nuagemagique.pilipos.ui.feedback.ErrorPresenter
 import dev.nuagemagique.pilipos.ui.feedback.ToastStore
 import dev.nuagemagique.pilipos.ui.format.CartAmounts
@@ -25,6 +26,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -220,6 +225,24 @@ internal fun sale(
 
 internal val mailOff = MailStatus(configured = false, reachable = false, allowDigitalOnly = false)
 
+/** The barcode reader as the checkout sees it: [scan] types a barcode, [claims] counts the claims being collected. */
+internal class FakeScanClaims : ScanClaims {
+    private val flow = MutableSharedFlow<String>(extraBufferCapacity = 4)
+
+    var claims = 0
+        private set
+
+    override fun claim(): Flow<String> =
+        flow
+            .onStart { claims += 1 }
+            .onCompletion { claims -= 1 }
+
+    /** A barcode read by the reader (nothing hears it while no claim is collected). */
+    fun scan(token: String) {
+        flow.tryEmit(token)
+    }
+}
+
 /** The checkout entry point over the given real stores. */
 @Suppress("LongParameterList")
 internal class TestCheckoutEntry(
@@ -234,6 +257,7 @@ internal class TestCheckoutEntry(
     private val catalog: MessageCatalog,
     private val amounts: CartAmounts,
     private val eft: EftStore,
+    private val scans: ScanClaims = FakeScanClaims(),
 ) : CheckoutEntryPoint {
     override fun gateway() = gateway
 
@@ -256,6 +280,8 @@ internal class TestCheckoutEntry(
     override fun amounts() = amounts
 
     override fun eft() = eft
+
+    override fun scans() = scans
 }
 
 /** An [AppNavigator] that records what it was asked. */
@@ -295,6 +321,7 @@ internal class CheckoutRig(
     private val collector: Job,
     val eft: EftStore,
     val entry: CheckoutEntryPoint,
+    val scans: FakeScanClaims,
 ) {
     val state get() = model.state.value
 
@@ -337,6 +364,7 @@ internal suspend fun TestScope.startCheckout(
     natives: CheckoutNatives = CheckoutNatives(),
     online: Boolean = false,
     startOnCard: Boolean = false,
+    scans: FakeScanClaims = FakeScanClaims(),
 ): CheckoutRig {
     val gateway = f.gateway(this)
     val toasts = ToastStore(backgroundScope)
@@ -358,12 +386,12 @@ internal suspend fun TestScope.startCheckout(
         session.login(user.insz, "1234")
     }
     val entry =
-        TestCheckoutEntry(gateway, helpers, order, session, delivery, settings, errors, toasts, catalog, CartAmounts(helpers), eft)
+        TestCheckoutEntry(gateway, helpers, order, session, delivery, settings, errors, toasts, catalog, CartAmounts(helpers), eft, scans)
     val model = CheckoutViewModel(entry, orderId, online, startOnCard)
     val seen = mutableListOf<CheckoutEffect>()
     val collector = CoroutineScope(UnconfinedTestDispatcher(testScheduler)).launch { model.effects.collect { seen += it } }
     runCurrent()
-    return CheckoutRig(f, model, session, order, delivery, toasts, catalog, errorTexts, natives, seen, collector, eft, entry)
+    return CheckoutRig(f, model, session, order, delivery, toasts, catalog, errorTexts, natives, seen, collector, eft, entry, scans)
 }
 
 /** A row of the VAT summary, for the content tests. */

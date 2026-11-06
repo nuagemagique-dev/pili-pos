@@ -23,6 +23,7 @@ import dev.nuagemagique.pilipos.ui.badge.FakeNfcSupport
 import dev.nuagemagique.pilipos.ui.badge.KeyWedgeSource
 import dev.nuagemagique.pilipos.ui.badge.NfcBadgeSource
 import dev.nuagemagique.pilipos.ui.badge.NfcSupport
+import dev.nuagemagique.pilipos.ui.badge.ScanClaims
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,7 +62,7 @@ class MainActivityNfcTest {
     @get:Rule
     val chain: RuleChain = RuleChain.outerRule(hiltRule).around(composeRule)
 
-    /** [BadgeModule] without the [NfcSupport] binding. */
+    /** [BadgeModule] without the [NfcSupport] binding, and with the barcode reader claims. */
     @Module
     @InstallIn(SingletonComponent::class)
     object TestBadgeModule {
@@ -71,6 +72,9 @@ class MainActivityNfcTest {
 
         @Provides
         fun badgeCue(cue: AudioTrackBadgeCue): BadgeCue = cue
+
+        @Provides
+        fun scanClaims(wedge: KeyWedgeSource): ScanClaims = wedge
 
         @Provides
         @Singleton

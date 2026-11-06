@@ -209,4 +209,100 @@ class KeyWedgeSourceTest {
         source.detach()
         assertTrue(delivered.isEmpty())
     }
+
+    // ── A screen claims the scans (UX audit P7, the gift voucher dialog) ──
+
+    private val voucherCode =
+        listOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 9, 5).map { KeyEvent.KEYCODE_0 + it }
+
+    /** Collects the claim and the badge scans while [block] runs: (claimed, badge). */
+    private fun collectBoth(block: () -> Unit): Pair<List<String>, List<String>> {
+        val claimed = mutableListOf<String>()
+        val badges = mutableListOf<String>()
+        runTest(UnconfinedTestDispatcher()) {
+            val a = launch { source.claim().toList(claimed) }
+            val b = launch { source.scans.toList(badges) }
+            block()
+            a.cancel()
+            b.cancel()
+        }
+        return claimed to badges
+    }
+
+    @Test
+    fun aClaimReadsAScanEvenWithTheBadgeReaderOff() {
+        // Not started: only the claim makes the source take keys.
+        val (claimed, badges) =
+            collectBoth {
+                typeBadge(voucherCode)
+                assertTrue(down(KeyEvent.KEYCODE_ENTER))
+                assertTrue(up(KeyEvent.KEYCODE_ENTER))
+            }
+        assertEquals(listOf("123456789095"), claimed)
+        assertTrue(badges.isEmpty())
+        assertTrue(delivered.isEmpty())
+    }
+
+    @Test
+    fun aClaimTakesTheScanAwayFromTheBadgeReader() {
+        source.start()
+        val (claimed, badges) =
+            collectBoth {
+                typeBadge(voucherCode)
+                down(KeyEvent.KEYCODE_ENTER)
+            }
+        assertEquals(listOf("123456789095"), claimed)
+        assertTrue("a voucher barcode is never a badge", badges.isEmpty())
+    }
+
+    @Test
+    fun aClaimReadsACodeLongerThanTheBadgeLengthSetting() {
+        source.start()
+        source.configure(WedgeConfig(maxGapMs = 50L, minLen = 4, maxLen = 8))
+        val (claimed, _) =
+            collectBoth {
+                typeBadge(voucherCode)
+                down(KeyEvent.KEYCODE_ENTER)
+            }
+        assertEquals(listOf("123456789095"), claimed)
+    }
+
+    @Test
+    fun theBadgeReaderGetsTheScansBackWhenTheClaimEnds() {
+        source.start()
+        source.configure(WedgeConfig(maxGapMs = 50L, minLen = 4, maxLen = 8))
+        collectBoth { }
+        // No claim any more: the badge length setting applies again, so 12 digits are typing...
+        val badges =
+            collect {
+                typeBadge(voucherCode)
+                down(KeyEvent.KEYCODE_ENTER)
+            }
+        assertTrue(badges.isEmpty())
+        // ... and an 8-digit badge is a badge again.
+        val badge =
+            collect {
+                typeBadge(voucherCode.take(8))
+                assertTrue(down(KeyEvent.KEYCODE_ENTER))
+            }
+        assertEquals(listOf("12345678"), badge)
+    }
+
+    @Test
+    fun withTheBadgeReaderOffTheKeysPassAgainWhenTheClaimEnds() {
+        collectBoth { }
+        assertFalse(down(KeyEvent.KEYCODE_1))
+        assertFalse(down(KeyEvent.KEYCODE_ENTER))
+    }
+
+    @Test
+    fun typingDuringAClaimIsReplayedInOrder() {
+        val (claimed, _) =
+            collectBoth {
+                typeBadge(listOf(KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_2))
+                assertFalse(down(KeyEvent.KEYCODE_ENTER))
+            }
+        assertTrue(claimed.isEmpty())
+        assertEquals(listOf(KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_1, KeyEvent.KEYCODE_2, KeyEvent.KEYCODE_2), delivered.map { it.second })
+    }
 }

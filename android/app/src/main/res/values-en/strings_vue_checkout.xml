@@ -66,6 +66,8 @@
     <string name="method_gift_voucher">Gift voucher</string>
     <string name="gv_dialog_title">Pay with a gift voucher</string>
     <string name="gv_code_label">Voucher code (12 digits)</string>
+    <string name="gv_scan_hint">or scan the barcode of the voucher</string>
+    <string name="gv_scan_invalid">This barcode is not a gift voucher (12 digits expected)</string>
     <string name="gv_lookup">Look up</string>
     <string name="gv_balance">Balance</string>
     <string name="gv_expires">Valid until {date}</string>

@@ -408,6 +408,23 @@ class CheckoutScreenshotTest {
     }
 
     @Test
+    fun giftVoucherScanned() {
+        val voucher =
+            uniffi.pos_ffi.GiftVoucherView(
+                7L, "**** **** 9095", 5_000L, 3_000L, "2026-10-01", "2027-10-01", "active", false,
+                listOf(uniffi.pos_ffi.GiftVoucherMovement("issue", 5_000L, "2026-10-01", "N 12")),
+            )
+        capture(
+            base.copy(
+                giftVouchersEnabled = true,
+                amounts = CheckoutAmounts(restCents = 3_190L, dueCents = 3_190L, roundedDueCents = 3_190L, restShownCents = 3_190L),
+                voucher = VoucherDialogState(digits = "123456789095", found = voucher, scanned = true),
+            ),
+            "checkout_gift_voucher_scanned",
+        )
+    }
+
+    @Test
     fun giftVoucherDone() {
         val done =
             CheckoutDone(

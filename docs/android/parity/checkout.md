@@ -15,6 +15,7 @@ rounding, the signature, the ticket delivery); the screen only calls it through 
 | CheckoutView.vue (summary: change rows, Sous-total, Remise) | feature/checkout/CheckoutPanels.kt (SummaryLine, SummaryFoot), CheckoutState.kt (CheckoutSummary.discountCents) | - |
 | CheckoutView.vue (`held-warning`, `sendHeldNow`: "Envoyer maintenant") | feature/checkout/CheckoutPanels.kt (HeldWarning), CheckoutViewModel.kt (sendHeldNow) over ui/state/OrderStore.kt | `send_next_course` |
 | CheckoutView.vue ("Bon cadeau" method, `GiftVoucherDialog.vue`, voucher notes `gv-prints` on the done screen) | feature/checkout/GiftVoucherDialog.kt, CheckoutPanels.kt (MethodRow), CheckoutScreen.kt (VoucherPrints), CheckoutViewModel.kt (voucherKey, lookupVoucher, applyVoucher) with ui/components/GiftVouchers.kt | `lookup_gift_voucher` `checkout` |
+| GiftVoucherDialog.vue (USB barcode reader: `useVoucherScanner`, `utils/giftVoucherScan.ts`, `utils/scanClaim.ts`; UX audit P7) | feature/checkout/CheckoutViewModel.kt (`scanVoucher`, the claim follows the dialog), GiftVoucherDialog.kt (hint `gv_scan_hint`, masked code) with ui/components/GiftVouchers.kt (`voucherCodeFromScan`, `maskedVoucherCode`), ui/badge/ScanClaims.kt over KeyWedgeSource.kt (`claim()`) | `lookup_gift_voucher` |
 | components/TicketMediumPicker.vue | ui/components/TicketMediumPicker.kt (TicketMediumPicker, TicketMediumKeypad) bound to ui/state/DeliveryStore.kt | - |
 | components/EmailKeypad.vue | ui/components/EmailKeypad.kt, drawn in the scaffold overlay of the checkout route | - |
 | components/DeliveryOutcomePanel.vue | ui/components/DeliveryOutcomePanel.kt with `DeliveryStore.printMissingOriginal` | `print_missing_original` |
@@ -110,3 +111,13 @@ cash part without amount (the Vue `payload`), and the `DeliveryStore` request (`
   lists the approved payments (`eft_payments`) and the screen adopts them again, which is the same as Vue. The split
   count is not restored (same on both). Leaving an online checkout drops the kept parts.
 
+- **Gift voucher barcode (UX audit P7).** The printed voucher (and its DUPLICATA) carries a CODE128 barcode of the 12
+  digits under the code (`pos-print`, `EscPosBuilder::barcode_code128_digits`: `GS k 73`, code set B, ASCII digits so
+  no raw value 0 to 99 can look like a command to a byte reader, module width 2 = 334 dots, inside the 420 dots of
+  58 mm paper). A USB scanner in keyboard wedge mode (digits then Enter) fills the code of the dialog and looks it up
+  at once, with no tap on "Chercher"; the code is shown masked (`**** **** 9095`), a token that is not 12 digits is
+  refused with `gv_scan_invalid`, a scan during a lookup or of the voucher already found is ignored, and typing on the
+  pad after a scan starts a new code. Vue: a window `keydown` capture listener while the dialog is mounted (same
+  `WedgeDetector` and gap as the badge reader). Compose: `KeyWedgeSource.claim()`, collected by the view model only
+  while the dialog is open. In both, the claim makes the badge reader stand aside (a voucher barcode is never a
+  badge) and works with the badge reader setting off. Lookups stay throttled by the engine (5 failed tries a minute).

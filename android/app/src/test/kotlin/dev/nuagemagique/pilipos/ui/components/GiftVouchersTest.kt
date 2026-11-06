@@ -9,6 +9,8 @@ import dev.nuagemagique.pilipos.i18n.I18nTestSupport
 import dev.nuagemagique.pilipos.ui.text.ProvideUiText
 import dev.nuagemagique.pilipos.ui.theme.PiliTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,6 +48,21 @@ class GiftVouchersTest {
         assertEquals("", spacedVoucherCode(""))
         assertEquals("12", spacedVoucherCode("12"))
         assertEquals("1234 5678 9095", spacedVoucherCode("123456789095"))
+    }
+
+    @Test
+    fun aScannedTokenIsAVoucherCodeOnlyWithTwelveDigits() {
+        assertEquals("123456789095", voucherCodeFromScan("123456789095"))
+        assertEquals("000000000000", voucherCodeFromScan("000000000000"))
+        listOf("", "12345678909", "1234567890951", "12345678909A", "1234 5678 9095").forEach {
+            assertNull(it, voucherCodeFromScan(it))
+        }
+    }
+
+    @Test
+    fun aScannedCodeIsShownMaskedWithItsLastFourDigitsOnly() {
+        assertEquals("**** **** 9095", maskedVoucherCode("123456789095"))
+        assertFalse(maskedVoucherCode("123456789095").contains("1234"))
     }
 
     @Test

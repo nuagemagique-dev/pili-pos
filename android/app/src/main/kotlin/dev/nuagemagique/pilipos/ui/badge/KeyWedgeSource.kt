@@ -8,6 +8,8 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -22,23 +24,31 @@ private const val SCAN_BUFFER = 4
  * so the detector never sees its own replay. A [Handler] releases the held keys when the gap has passed. With the
  * source stopped (reader not `usb`) every event passes.
  *
+ * A screen can also [claim] the scans (UX audit P7, the gift voucher dialog): while a claim is collected the source
+ * reads even with the badge reader off, with the widest limits (a voucher code is 12 digits, whatever the badge
+ * length setting says), and every recognised scan goes to the claim instead of the badge store.
+ *
  * Main thread only, like the dispatch it hooks.
  */
 @Singleton
+@Suppress("TooManyFunctions") // The detector hooks, the held keys, the replay and the claim of a screen.
 class KeyWedgeSource internal constructor(
     private val clock: () -> Long,
     private val handler: Handler,
-) : BadgeSource {
+) : BadgeSource,
+    ScanClaims {
     @Inject
     constructor() : this({ SystemClock.uptimeMillis() }, Handler(Looper.getMainLooper()))
 
     private val detector = WedgeDetector<KeyEvent>()
     private val mutableScans = MutableSharedFlow<String>(extraBufferCapacity = SCAN_BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+    private val claimedScans = MutableSharedFlow<String>(extraBufferCapacity = SCAN_BUFFER, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
     // The key codes whose DOWN was swallowed and whose UP has not come yet: their UP is swallowed too.
     private val swallowedUps = mutableSetOf<Int>()
     private var config = WedgeConfig()
     private var started = false
+    private var claims = 0
     private var replaying = false
     private var sink: ((KeyEvent) -> Boolean)? = null
     private val flushTask = Runnable { release() }
@@ -58,8 +68,33 @@ class KeyWedgeSource internal constructor(
     override fun configure(config: WedgeConfig) {
         release()
         this.config = config
-        detector.configure(config)
+        detector.configure(effectiveConfig())
     }
+
+    /**
+     * The scans of a screen that claimed them: collecting starts the claim, the end of the collection gives it back.
+     * Each recognised scan goes here and not to [scans] while at least one claim is collected.
+     */
+    override fun claim(): Flow<String> =
+        claimedScans
+            .asSharedFlow()
+            .onStart { changeClaims(+1) }
+            .onCompletion { changeClaims(-1) }
+
+    private fun changeClaims(by: Int) {
+        // Whatever is held was read under the old limits: let it go before the limits change.
+        release()
+        claims += by
+        detector.configure(effectiveConfig())
+    }
+
+    /** A claim widens the limits to the defaults, so a code longer than the badge length setting is still one scan. */
+    private fun effectiveConfig(): WedgeConfig =
+        if (claims > 0) {
+            config.copy(minLen = WedgeConfig.DEFAULT_MIN_LEN, maxLen = WedgeConfig.DEFAULT_MAX_LEN)
+        } else {
+            config
+        }
 
     /** Gives the replay a way back into the view hierarchy: the activity's own `super.dispatchKeyEvent`. */
     fun attach(sink: (KeyEvent) -> Boolean) {
@@ -77,7 +112,7 @@ class KeyWedgeSource internal constructor(
     /** True when [event] was taken (held, swallowed or a badge): the activity must not dispatch it further. */
     fun dispatch(event: KeyEvent): Boolean =
         when {
-            !started || replaying -> false
+            !(started || claims > 0) || replaying -> false
             event.action == KeyEvent.ACTION_UP -> swallowedUps.remove(event.keyCode)
             event.action != KeyEvent.ACTION_DOWN -> false
             else -> onDown(event)
@@ -112,7 +147,7 @@ class KeyWedgeSource internal constructor(
             is WedgeResult.Badge -> {
                 swallow(event)
                 handler.removeCallbacks(flushTask)
-                mutableScans.tryEmit(result.token)
+                if (claims > 0) claimedScans.tryEmit(result.token) else mutableScans.tryEmit(result.token)
                 true
             }
         }

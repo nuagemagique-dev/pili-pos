@@ -702,6 +702,8 @@ internal object VueStringIds {
         this["method_gift_voucher"] = R.string.method_gift_voucher
         this["gv_dialog_title"] = R.string.gv_dialog_title
         this["gv_code_label"] = R.string.gv_code_label
+        this["gv_scan_hint"] = R.string.gv_scan_hint
+        this["gv_scan_invalid"] = R.string.gv_scan_invalid
         this["gv_lookup"] = R.string.gv_lookup
         this["gv_balance"] = R.string.gv_balance
         this["gv_expires"] = R.string.gv_expires
@@ -770,11 +772,11 @@ internal object VueStringIds {
         this["reports_pc_confirm"] = R.string.reports_pc_confirm
         this["reports_pc_pin_hint"] = R.string.reports_pc_pin_hint
         this["reports_pc_done"] = R.string.reports_pc_done
-        this["reports_pc_corrected"] = R.string.reports_pc_corrected
-        this["reports_pc_not_possible"] = R.string.reports_pc_not_possible
     }
 
     private fun MutableMap<String, Int>.part3() {
+        this["reports_pc_corrected"] = R.string.reports_pc_corrected
+        this["reports_pc_not_possible"] = R.string.reports_pc_not_possible
         this["invoice_action"] = R.string.invoice_action
         this["invoice_action_count"] = R.string.invoice_action_count
         this["invoice_select_hint"] = R.string.invoice_select_hint
@@ -1023,11 +1025,11 @@ internal object VueStringIds {
         this["menu_ed_history_by"] = R.string.menu_ed_history_by
         this["menu_ed_action_create"] = R.string.menu_ed_action_create
         this["menu_ed_action_update"] = R.string.menu_ed_action_update
-        this["menu_ed_entity_category"] = R.string.menu_ed_entity_category
-        this["menu_ed_entity_product"] = R.string.menu_ed_entity_product
     }
 
     private fun MutableMap<String, Int>.part4() {
+        this["menu_ed_entity_category"] = R.string.menu_ed_entity_category
+        this["menu_ed_entity_product"] = R.string.menu_ed_entity_product
         this["menu_ed_entity_modifier_group"] = R.string.menu_ed_entity_modifier_group
         this["menu_ed_entity_modifier"] = R.string.menu_ed_entity_modifier
         this["menu_ed_field_names"] = R.string.menu_ed_field_names
@@ -1276,11 +1278,11 @@ internal object VueStringIds {
         this["modifier_per_kilo"] = R.string.modifier_per_kilo
         this["err_modifier_unknown"] = R.string.err_modifier_unknown
         this["err_modifier_count"] = R.string.err_modifier_count
-        this["err_hubrise_disabled"] = R.string.err_hubrise_disabled
-        this["err_hubrise_not_configured"] = R.string.err_hubrise_not_configured
     }
 
     private fun MutableMap<String, Int>.part5() {
+        this["err_hubrise_disabled"] = R.string.err_hubrise_disabled
+        this["err_hubrise_not_configured"] = R.string.err_hubrise_not_configured
         this["err_hubrise_secret_unreadable"] = R.string.err_hubrise_secret_unreadable
         this["err_hubrise_oauth_failed"] = R.string.err_hubrise_oauth_failed
         this["err_hubrise_online_orders_open"] = R.string.err_hubrise_online_orders_open

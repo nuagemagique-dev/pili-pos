@@ -19,6 +19,7 @@ import dev.nuagemagique.pilipos.ui.components.NumPad
 import dev.nuagemagique.pilipos.ui.components.PiliButton
 import dev.nuagemagique.pilipos.ui.components.PiliButtonVariant
 import dev.nuagemagique.pilipos.ui.components.PiliDialog
+import dev.nuagemagique.pilipos.ui.components.maskedVoucherCode
 import dev.nuagemagique.pilipos.ui.components.spacedVoucherCode
 import dev.nuagemagique.pilipos.ui.text.uiText
 import dev.nuagemagique.pilipos.ui.text.vueText
@@ -29,8 +30,9 @@ private val DialogMaxWidth = 440.dp
 /**
  * Pay with a gift voucher (`GiftVoucherDialog.vue`): the 12-digit code typed on the pad, "Chercher" asks the engine
  * (5 failed tries a minute, then it makes the operator wait), and the screen shows the balance, the expiry and the
- * status. The amount used is the smaller of the balance and [restCents]. Test tags: `gv_dialog`, `gv_code`,
- * `gv_error`, `gv_found`, `gv_status`, `gv_balance`, `gv_amount`, `gv_lookup`, `gv_apply`, `gv_cancel`.
+ * status. The amount used is the smaller of the balance and [restCents]. A USB barcode reader does the same in one go
+ * (UX audit P7): the scan fills the code, shown masked, and looks it up at once. Test tags: `gv_dialog`, `gv_code`,
+ * `gv_scan_hint`, `gv_error`, `gv_found`, `gv_status`, `gv_balance`, `gv_amount`, `gv_lookup`, `gv_apply`, `gv_cancel`.
  */
 @Composable
 internal fun GiftVoucherDialog(
@@ -75,13 +77,7 @@ internal fun GiftVoucherDialog(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(PiliTheme.dimens.spaceMd),
             ) {
-                Text(vueText("gv_code_label"), style = t.body, color = c.textSecondary)
-                Text(
-                    text = spacedVoucherCode(state.digits).ifEmpty { " " },
-                    style = t.figure.copy(fontSize = t.sizeXl),
-                    color = c.accentPrimary,
-                    modifier = Modifier.testTag("gv_code"),
-                )
+                VoucherCodeLines(state)
                 NumPad(
                     onKey = callbacks.onVoucherKey,
                     clearLabel = uiText(R.string.ui_common_numpad_clear),
@@ -94,4 +90,24 @@ internal fun GiftVoucherDialog(
             }
         }
     }
+}
+
+/** The label, the hint at the barcode reader and the code: masked after a scan, as the voucher prints it when typed. */
+@Composable
+private fun VoucherCodeLines(state: VoucherDialogState) {
+    val c = PiliTheme.colors
+    val t = PiliTheme.typography
+    Text(vueText("gv_code_label"), style = t.body, color = c.textSecondary)
+    Text(
+        vueText("gv_scan_hint"),
+        style = t.body.copy(fontSize = t.sizeSm),
+        color = c.textSecondary,
+        modifier = Modifier.testTag("gv_scan_hint"),
+    )
+    Text(
+        text = (if (state.scanned) maskedVoucherCode(state.digits) else spacedVoucherCode(state.digits)).ifEmpty { " " },
+        style = t.figure.copy(fontSize = t.sizeXl),
+        color = c.accentPrimary,
+        modifier = Modifier.testTag("gv_code"),
+    )
 }
