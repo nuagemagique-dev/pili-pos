@@ -45,7 +45,9 @@ use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pos_engine::commands::financial::{
+    DrawerAfter, MoneyDirection, do_money_in_out, do_open_drawer_fiscal,
+};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::report::{
     do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
@@ -628,6 +630,7 @@ async fn money_in_out_fdm_failure_modes_leave_no_archive_and_counter_at_zero() {
             5000,
             MoneyDirection::In,
             "Cash float opening".to_string(),
+            DrawerAfter::Leave,
         )
         .await
         .expect("money_in_out returns a result");
@@ -650,6 +653,7 @@ async fn money_in_out_retries_after_fdm_failure_with_the_same_ticket_number() {
         5000,
         MoneyDirection::In,
         "Cash float opening".to_string(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();
@@ -661,6 +665,7 @@ async fn money_in_out_retries_after_fdm_failure_with_the_same_ticket_number() {
         5000,
         MoneyDirection::In,
         "Cash float opening".to_string(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();

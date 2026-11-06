@@ -482,6 +482,54 @@ fn refundable_and_copyable_tickets_with_a_table_round_trip() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
+async fn a_ticket_found_by_its_number_converts() {
+    let app = app_on_mock(false).await;
+    let sale = cash_sale(&app, None).await;
+    let number = do_list_refundable_events(&app.state, None).unwrap()[0].ticket_number;
+
+    let lookup =
+        pos_engine::commands::refund::do_find_ticket_by_number(&app.state, number).unwrap();
+    let record: rec::TicketLookup = out_equal(&lookup);
+    assert_eq!(record.number, number);
+    assert_eq!(record.matches.len(), 1);
+    let found = &record.matches[0];
+    assert_eq!(Some(found.fiscal_event_id), sale.fiscal_event_id);
+    assert_eq!(found.event_label, "N");
+    assert!(!found.is_refund);
+    assert!(found.copyable.is_some());
+    assert_eq!(found.refundable.as_ref().map(|r| r.total_cents), Some(5200));
+    assert_eq!(found.refund_blocked, None);
+
+    // A number nobody holds is an empty answer, not an error.
+    let none =
+        pos_engine::commands::refund::do_find_ticket_by_number(&app.state, number + 900).unwrap();
+    let record: rec::TicketLookup = out_equal(&none);
+    assert!(record.matches.is_empty());
+}
+
+#[test]
+fn a_ticket_lookup_with_a_refused_refund_round_trips() {
+    let lookup: rec::TicketLookup = json_round_trip(json!({
+        "number": 12,
+        "matches": [{
+            "fiscalEventId": 3, "eventLabel": "N", "ticketNumber": 12, "tableNumber": null,
+            "totalCents": 4200, "createdAt": "2026-10-03 10:00:00", "isRefund": false,
+            "copyable": null, "refundable": null, "refundBlocked": "refund_already_done"
+        }]
+    }));
+    assert_eq!(
+        lookup.matches[0].refund_blocked.as_deref(),
+        Some("refund_already_done")
+    );
+    assert!(
+        contract_out::<_, rec::TicketLookup>(&json!({
+            "number": 12, "matches": [], "extra": 1
+        }))
+        .is_err()
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
 async fn a_copy_result_of_a_real_copy_converts() {
     let app = app_on_mock(true).await;
     let sale = cash_sale(&app, None).await;
@@ -813,6 +861,7 @@ async fn every_command_of_the_domain_is_wired() {
         assert!(!result.success);
     }
     assert_ok_or_coded("list_copyable_tickets", e.list_copyable_tickets(None).await);
+    assert_ok_or_coded("find_ticket_by_number", e.find_ticket_by_number(1).await);
     assert_ok_or_coded("print_missing_original", e.print_missing_original(1).await);
     assert_ok_or_coded("print_webshop_kitchen", e.print_webshop_kitchen(1).await);
     assert_ok_or_coded("print_webshop_customer", e.print_webshop_customer(1).await);
@@ -820,6 +869,10 @@ async fn every_command_of_the_domain_is_wired() {
     // Manager commands keep refusing without a session, with a code and not `Internal`.
     assert!(matches!(
         err_of(e.list_copyable_tickets(Some(3)).await),
+        PosError::Coded { .. }
+    ));
+    assert!(matches!(
+        err_of(e.find_ticket_by_number(1).await),
         PosError::Coded { .. }
     ));
     e.shutdown().await.unwrap();

@@ -1,6 +1,6 @@
 use tauri::State;
 
-use pos_engine::commands::financial::{FinancialResult, MoneyDirection};
+use pos_engine::commands::financial::{DrawerAfter, FinancialResult, MoneyDirection};
 use pos_engine::commands::payment_correction::SalePayments;
 use pos_fiscal::payment::PaymentMethod;
 
@@ -8,6 +8,8 @@ use super::Managed;
 
 /// Record a cash financial event (Event F): money put in or taken
 /// out (cash float, withdrawal, ...), or the count of the drawer.
+/// `open_drawer` also opens the drawer once, after the movement is signed
+/// (the UI always sends it, false for a plain movement).
 #[tauri::command]
 pub async fn money_in_out(
     state: State<'_, Managed>,
@@ -15,6 +17,7 @@ pub async fn money_in_out(
     amount_cents: i64,
     direction: MoneyDirection,
     reason: String,
+    open_drawer: DrawerAfter,
 ) -> Result<FinancialResult, String> {
     pos_engine::commands::financial::do_money_in_out(
         state.inner(),
@@ -22,6 +25,7 @@ pub async fn money_in_out(
         amount_cents,
         direction,
         reason,
+        open_drawer,
     )
     .await
 }

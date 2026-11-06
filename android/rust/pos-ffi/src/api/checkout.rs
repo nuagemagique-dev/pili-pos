@@ -23,7 +23,7 @@ use crate::core::PosEngine;
 use crate::error::PosError;
 use crate::records::checkout::{
     CopyResult, CopyableTicket, DeliveryView, FdmStatusReport, FiscalEventSummary, MailStatus,
-    RefundItem, RefundableEvent, SettledPaymentRow, SettlementPreview,
+    RefundItem, RefundableEvent, SettledPaymentRow, SettlementPreview, TicketLookup,
 };
 use crate::records::common::{CheckoutResult, PaymentPart, TicketDeliveryRequest};
 
@@ -88,6 +88,17 @@ impl PosEngine {
             })
             .await?;
         convert::out(&events)
+    }
+
+    /// Find a ticket of the archive by the number printed on it (managers only), for the copy and
+    /// the refund. A sale that cannot be refunded carries the reason.
+    pub async fn find_ticket_by_number(&self, number: i64) -> Result<TicketLookup, PosError> {
+        let lookup = self
+            .blocking(move |state| {
+                pos_engine::commands::refund::do_find_ticket_by_number(state, number)
+            })
+            .await?;
+        convert::out(&lookup)
     }
 
     /// Refund a signed sale, in full or in part.

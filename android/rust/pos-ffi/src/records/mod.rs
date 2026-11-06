@@ -119,6 +119,8 @@
 //! | `MailStatus` | `pos_engine::commands::delivery::MailStatus` | checkout | check_mail_status |
 //! | `RefundItem` | `pos_engine::commands::refund::RefundItem` | checkout | refund_checkout |
 //! | `RefundableEvent` | `pos_db::queries::fiscal::RefundableEvent` | checkout | list_refundable_events |
+//! | `TicketLookup` | `pos_engine::commands::refund::TicketLookup` | checkout | find_ticket_by_number |
+//! | `TicketMatch` | `pos_engine::commands::refund::TicketMatch` | checkout | find_ticket_by_number |
 //! | `AlertKinds` | `pos_engine::commands::alerts::AlertKinds` | alerts | get_owner_alerts, set_owner_alerts |
 //! | `AlertLogRow` | `pos_db::queries::owner_settings::AlertLogRow` | alerts | list_owner_alert_log |
 //! | `AlertTestResult` | `pos_engine::commands::alerts::AlertTestResult` | alerts | send_test_alert |

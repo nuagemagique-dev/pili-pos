@@ -44,7 +44,9 @@ use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_copy_ticket;
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out, do_open_drawer_fiscal};
+use pos_engine::commands::financial::{
+    DrawerAfter, MoneyDirection, do_money_in_out, do_open_drawer_fiscal,
+};
 use pos_engine::commands::invoice::{
     B2bCustomerInput, do_save_b2b_customer, do_sign_invoice_fiscal,
 };
@@ -341,6 +343,7 @@ async fn m130_money_in_out_archives_f_event() {
         5000,
         MoneyDirection::In,
         "Cash float opening".to_string(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();

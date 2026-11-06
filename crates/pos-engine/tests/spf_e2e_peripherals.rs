@@ -25,7 +25,9 @@ use pos_core::vat::VatCode;
 use pos_db::queries::orders::NewOrderLine;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::do_list_fiscal_events;
-use pos_engine::commands::financial::do_open_drawer_fiscal;
+use pos_engine::commands::financial::{
+    DrawerAfter, MoneyDirection, do_money_in_out, do_open_drawer_fiscal,
+};
 use pos_engine::commands::refund::{RefundItem, do_refund_checkout};
 use pos_engine::commands::report::{
     do_backup_database, do_generate_user_x_report, do_generate_x_report, do_generate_z_report,
@@ -196,6 +198,145 @@ async fn the_drawer_stays_shut_when_the_fdm_refuses_its_event() {
         printer.drawer_kicks(),
         0,
         "no drawer opening without a signed F"
+    );
+}
+
+// ── Cash movement that opens the drawer (R3) ──────────────────
+
+/// A movement through `do_money_in_out`, the drawer step as given.
+async fn movement(
+    app: &TestApp,
+    direction: MoneyDirection,
+    amount_cents: i64,
+    drawer: DrawerAfter,
+) -> pos_engine::commands::financial::FinancialResult {
+    do_money_in_out(
+        &app.state,
+        INSZ.to_string(),
+        amount_cents,
+        direction,
+        "Fond de caisse".to_string(),
+        drawer,
+    )
+    .await
+    .unwrap()
+}
+
+#[tokio::test]
+// covers: FAQ_Q405
+async fn a_cash_movement_with_the_drawer_signs_one_f_event_then_kicks_once() {
+    // POS description v2.2 (DRAWER_OPEN: "Ouverture du tiroir-caisse en dehors des ventes") and
+    // FAQ Q405 b): no signDrawerOpen is needed with a signMoneyInOut, so the movement is the
+    // only event and the drawer is kicked once after it.
+    let (app, printer) = with_printer().await;
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M130")).await;
+    let result = movement(&app, MoneyDirection::In, 5000, DrawerAfter::Kick).await;
+    assert!(result.success, "{:?}", result.error);
+
+    let events = app.fiscal_events();
+    assert_eq!(events.len(), 1, "the movement is the only event");
+    assert_eq!(events[0].event_type, "F");
+    assert_eq!(app.counter_for(EventLabel::F), 1);
+    let request: serde_json::Value =
+        serde_json::from_str(events[0].event_data_json.as_deref().unwrap()).unwrap();
+    assert_eq!(request["financials"][0]["amountType"], "MONEY_IN_OUT");
+    assert_eq!(request["financials"][0]["amount"], 50.0);
+    assert!(
+        request.get("drawer").is_none(),
+        "no DRAWER_OPEN object beside the movement"
+    );
+
+    printer.settle(0).await;
+    assert_eq!(printer.drawer_kicks(), 1, "one kick for one tap");
+    assert!(printer.receipts().is_empty(), "a movement prints nothing");
+}
+
+#[tokio::test]
+async fn a_cash_out_with_the_drawer_signs_a_negative_movement_and_kicks() {
+    let (app, printer) = with_printer().await;
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M130")).await;
+    let result = movement(&app, MoneyDirection::Out, 1250, DrawerAfter::Kick).await;
+    assert!(result.success, "{:?}", result.error);
+    let events = app.fiscal_events();
+    assert_eq!(events.len(), 1);
+    let request: serde_json::Value =
+        serde_json::from_str(events[0].event_data_json.as_deref().unwrap()).unwrap();
+    assert_eq!(request["financials"][0]["amount"], -12.5);
+    printer.settle(0).await;
+    assert_eq!(printer.drawer_kicks(), 1);
+}
+
+#[tokio::test]
+async fn a_cash_movement_without_the_flag_keeps_the_drawer_shut() {
+    let (app, printer) = with_printer().await;
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M130")).await;
+    let result = movement(&app, MoneyDirection::In, 5000, DrawerAfter::Leave).await;
+    assert!(result.success, "{:?}", result.error);
+    assert_eq!(app.counter_for(EventLabel::F), 1);
+    printer.settle(0).await;
+    assert_eq!(
+        printer.drawer_kicks(),
+        0,
+        "other callers keep their behaviour"
+    );
+}
+
+#[tokio::test]
+async fn a_drawer_count_never_kicks_the_drawer() {
+    let (app, printer) = with_printer().await;
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M133")).await;
+    let result = movement(
+        &app,
+        MoneyDirection::Declaration,
+        100_000,
+        DrawerAfter::Kick,
+    )
+    .await;
+    assert!(result.success, "{:?}", result.error);
+    printer.settle(0).await;
+    assert_eq!(printer.drawer_kicks(), 0, "a count is not a cash movement");
+}
+
+#[tokio::test]
+async fn the_drawer_stays_shut_when_the_fdm_refuses_the_movement() {
+    let (app, printer) = with_printer().await;
+    fdm_refuses(&app).await;
+    let result = movement(&app, MoneyDirection::In, 5000, DrawerAfter::Kick).await;
+    assert!(!result.success);
+    assert!(app.fiscal_events().is_empty());
+    printer.settle(0).await;
+    assert_eq!(
+        printer.drawer_kicks(),
+        0,
+        "no drawer opening without a signed F"
+    );
+
+    // The retry signs it and kicks once.
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M130")).await;
+    let retry = movement(&app, MoneyDirection::In, 5000, DrawerAfter::Kick).await;
+    assert!(retry.success, "{:?}", retry.error);
+    assert_eq!(app.fiscal_events().len(), 1);
+    printer.settle(0).await;
+    assert_eq!(printer.drawer_kicks(), 1);
+}
+
+#[tokio::test]
+async fn a_drawer_movement_does_not_count_as_a_drawer_opening_in_the_z_report() {
+    // drawersOpenCount counts the DRAWER_OPEN events only (report_totals.rs): the movement that
+    // opened the drawer is an ordinary MONEY_IN_OUT.
+    let (app, _printer) = with_printer().await;
+    mock_from_fixture(&app, &load_uc(&basic_set_root(), "M130")).await;
+    let result = movement(&app, MoneyDirection::In, 5000, DrawerAfter::Kick).await;
+    assert!(result.success, "{:?}", result.error);
+    let events = app.fiscal_events();
+    assert_eq!(events.len(), 1);
+    let events: Vec<_> = events
+        .iter()
+        .map(|e| e.event_data_json.clone().unwrap_or_default())
+        .collect();
+    assert!(
+        events.iter().all(|json| !json.contains("DRAWER_OPEN")),
+        "{events:?}"
     );
 }
 

@@ -317,6 +317,7 @@ fn main() {
         ipc::support::stop_remote_support,
         // Refund
         ipc::refund::list_refundable_events,
+        ipc::refund::find_ticket_by_number,
         ipc::refund::refund_checkout,
         // Social (Event S - ONSS clock in/out)
         ipc::social::work_in,

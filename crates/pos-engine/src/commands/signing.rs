@@ -315,6 +315,9 @@ pub(crate) enum PendingContext {
         by: Option<String>,
     },
     Money,
+    /// A cash movement that also opens the drawer (`open_drawer`): the
+    /// same F event as `Money`, followed up by one kick of the drawer.
+    MoneyDrawer,
     Drawer,
     Invoice {
         invoice_no: String,
@@ -775,6 +778,7 @@ fn apply(
         | PendingContext::ReportX { .. }
         | PendingContext::ReportUserX { .. }
         | PendingContext::Money
+        | PendingContext::MoneyDrawer
         | PendingContext::Drawer
         | PendingContext::PaymentCorrection { .. } => Ok((None, None)),
         PendingContext::Invoice { .. } => {
@@ -1010,7 +1014,7 @@ pub(crate) async fn follow_up(
                 crate::commands::export::wake_after_z(state);
             }
         }
-        PendingContext::Drawer => kick(with_drawer).await,
+        PendingContext::Drawer | PendingContext::MoneyDrawer => kick(with_drawer).await,
         #[cfg(feature = "hubrise")]
         PendingContext::WebshopOrder { .. } => {}
         #[cfg(not(feature = "hubrise"))]

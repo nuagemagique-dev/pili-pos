@@ -18,7 +18,7 @@ use pos_core::order::OrderType;
 use pos_core::user::UserRole;
 use pos_engine::commands::checkout::{CheckoutPaymentMethod, do_checkout};
 use pos_engine::commands::copy::{do_copy_ticket, do_list_copyable_tickets};
-use pos_engine::commands::financial::{MoneyDirection, do_money_in_out};
+use pos_engine::commands::financial::{DrawerAfter, MoneyDirection, do_money_in_out};
 use pos_engine::commands::order::{
     AddOrderLineInput, CreateOrderInput, do_add_order_line, do_create_order,
 };
@@ -129,6 +129,7 @@ async fn the_picker_offers_every_ticket_a_customer_received_and_nothing_else() {
         5000,
         MoneyDirection::In,
         "float".into(),
+        DrawerAfter::Leave,
     )
     .await
     .unwrap();

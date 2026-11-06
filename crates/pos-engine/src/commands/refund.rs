@@ -40,6 +40,187 @@ pub fn do_list_refundable_events(
     fiscal::list_refundable_events(&db, limit.unwrap_or(20)).map_err(|e| e.to_string())
 }
 
+/// A ticket of the archive found by its printed number.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TicketMatch {
+    pub fiscal_event_id: i64,
+    /// N (sale or refund), P (pre-bill) or T (training).
+    pub event_label: String,
+    pub ticket_number: i64,
+    pub table_number: Option<i32>,
+    /// The ticket's own total, negative for a refund.
+    pub total_cents: i64,
+    pub created_at: String,
+    /// The ticket is a refund (a negative total).
+    pub is_refund: bool,
+    /// Present when the customer received this ticket: it can be copied.
+    pub copyable: Option<fiscal::CopyableTicket>,
+    /// Present when the sale can be refunded, at least in part.
+    pub refundable: Option<RefundableEvent>,
+    /// The error code that refuses the refund of a sale, the one the
+    /// refund itself would give. Only a sale (N) has one.
+    pub refund_blocked: Option<String>,
+}
+
+/// What `find_ticket_by_number` answers: the tickets that carry the
+/// number (none: not found), newest first.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TicketLookup {
+    pub number: i64,
+    pub matches: Vec<TicketMatch>,
+}
+
+/// Find a ticket of the whole archive by the number printed on it, for
+/// the copy and the refund (UX audit R2). Each label counts its own
+/// numbers, so one number can name a sale and a pre-bill: every match is
+/// returned. A sale that cannot be refunded comes back with the reason
+/// (`refund_blocked`), checked with the rules of the refund itself.
+pub fn do_find_ticket_by_number(state: &AppState, number: i64) -> Result<TicketLookup, String> {
+    access::operator(state, Access::Admin)?;
+    let mode = Mode::from(
+        state
+            .config
+            .lock()
+            .map_err(|e| e.to_string())?
+            .training_mode,
+    );
+    let db = state.db.lock().map_err(|e| e.to_string())?;
+    // A ticket number starts at 1: nothing else can be found.
+    let found = if number > 0 {
+        fiscal::find_tickets_by_number(&db, number, FIND_LIMIT).map_err(errors::internal)?
+    } else {
+        Vec::new()
+    };
+    let mut matches = Vec::with_capacity(found.len());
+    for ticket in found {
+        let copyable = (ticket.ticket_medium != "NONE").then(|| fiscal::CopyableTicket {
+            fiscal_event_id: ticket.fiscal_event_id,
+            event_label: ticket.event_label.clone(),
+            ticket_number: ticket.ticket_number,
+            table_number: ticket.table_number,
+            total_cents: ticket.total_cents,
+            created_at: ticket.created_at.clone(),
+        });
+        let (refundable, refund_blocked) = if ticket.event_label == "N" {
+            match refund_blocker(&db, mode, &ticket)? {
+                Some(code) => (None, Some(code)),
+                None => (
+                    ticket.order_id.map(|order_id| RefundableEvent {
+                        fiscal_event_id: ticket.fiscal_event_id,
+                        ticket_number: ticket.ticket_number,
+                        order_id,
+                        table_number: ticket.table_number,
+                        total_cents: ticket.order_total_cents.unwrap_or(ticket.total_cents),
+                        created_at: ticket.created_at.clone(),
+                    }),
+                    None,
+                ),
+            }
+        } else {
+            (None, None)
+        };
+        matches.push(TicketMatch {
+            fiscal_event_id: ticket.fiscal_event_id,
+            event_label: ticket.event_label,
+            ticket_number: ticket.ticket_number,
+            table_number: ticket.table_number,
+            total_cents: ticket.total_cents,
+            created_at: ticket.created_at,
+            is_refund: ticket.total_cents < 0,
+            copyable,
+            refundable,
+            refund_blocked,
+        });
+    }
+    Ok(TicketLookup { number, matches })
+}
+
+/// The matches of one number: a handful at most (one per label).
+const FIND_LIMIT: i64 = 10;
+
+/// Why the sale `ticket` cannot be refunded, with the code `refund_sale`
+/// gives for it, or `None` when something of it can still go back. The
+/// checks follow the order of `refund_sale`: an unpaid sale, a label
+/// other than N, training mode, a refund (refunded by selling again),
+/// then what is left to refund of the sale (everything refunded, or only
+/// gift vouchers that were used).
+fn refund_blocker(
+    db: &rusqlite::Connection,
+    mode: Mode,
+    ticket: &fiscal::TicketByNumber,
+) -> Result<Option<String>, String> {
+    let event = fiscal::get_fiscal_event(db, ticket.fiscal_event_id)
+        .map_err(errors::internal)?
+        .ok_or_else(|| errors::EVENT_NOT_FOUND.to_string())?;
+    let request: serde_json::Value = serde_json::from_str(&event.event_data_json)
+        .map_err(|e| errors::internal(format!("fiscal event {}: {e}", event.id)))?;
+    if pos_fiscal::ticket::is_unpaid_sale(&request) {
+        return Ok(Some(errors::REFUND_UNPAID_SALE.to_string()));
+    }
+    if mode == Mode::Training {
+        return Ok(Some(ERR_REFUND_IN_TRAINING.to_string()));
+    }
+    // A sale whose order is gone or still open has nothing to give back.
+    let (Some(order_id), Some("closed")) = (ticket.order_id, ticket.order_status.as_deref()) else {
+        return Ok(Some(errors::coded(
+            errors::NOT_REFUNDABLE,
+            &[("label", &"N")],
+        )));
+    };
+    let lines = pos_db::queries::orders::get_order_lines(db, order_id).map_err(errors::internal)?;
+    if lines.iter().map(|l| i64::from(l.quantity)).sum::<i64>() < 0 {
+        return Ok(Some(ERR_REFUND_OF_REFUND.to_string()));
+    }
+    let (Some(fdm_id), Some(fdm_datetime), Some(counter), Some(total_counter)) = (
+        event.fdm_id,
+        event.fdm_datetime,
+        event.event_counter,
+        event.total_counter,
+    ) else {
+        return Ok(Some(errors::coded(
+            errors::NOT_REFUNDABLE,
+            &[("label", &"N")],
+        )));
+    };
+    let original = FdmReference {
+        fdm_id,
+        fdm_date_time: fdm_datetime,
+        event_label: EventLabel::N,
+        event_counter: counter,
+        total_counter,
+    };
+    let already = already_refunded_quantities(db, &original)?;
+    // What is left of each product, price and VAT label.
+    let mut left: std::collections::BTreeMap<Bucket, i64> = std::collections::BTreeMap::new();
+    for line in lines.iter().filter(|l| l.quantity > 0) {
+        *left.entry(Bucket::of(line)).or_default() += i64::from(line.quantity);
+    }
+    for (bucket, refunded) in &already {
+        if let Some(sold) = left.get_mut(bucket) {
+            *sold -= refunded;
+        }
+    }
+    left.retain(|_, quantity| *quantity > 0);
+    if left.is_empty() {
+        return Ok(Some(errors::REFUND_ALREADY_DONE.to_string()));
+    }
+    // Only gift vouchers left, and one of them used: nothing can go back.
+    let voucher_item =
+        pos_db::queries::gift_vouchers::system_item_id(db).map_err(errors::internal)?;
+    if left.keys().all(|bucket| bucket.product == voucher_item) {
+        let voucher_lines: Vec<(i64, i64, i64)> = left
+            .iter()
+            .map(|(bucket, quantity)| (bucket.product, *quantity, bucket.unit_price_cents))
+            .collect();
+        if let Err(code) = super::gift_vouchers::vouchers_to_cancel(db, order_id, &voucher_lines) {
+            return Ok(Some(code));
+        }
+    }
+    Ok(None)
+}
+
 pub async fn do_refund_checkout(
     state: &AppState,
     original_fiscal_event_id: i64,

@@ -217,6 +217,8 @@ pub const REFUND_IN_TRAINING: &str = "refund_in_training";
 pub const REFUND_OF_REFUND: &str = "refund_of_refund";
 /// A sale closed unpaid: no money came in, none goes back.
 pub const REFUND_UNPAID_SALE: &str = "refund_unpaid_sale";
+/// Every unit the sale sold has already been refunded.
+pub const REFUND_ALREADY_DONE: &str = "refund_already_done";
 
 // Payment.
 /// A part without an amount, a zero or negative amount, a cash part
@@ -641,6 +643,7 @@ pub const ALL: &[&str] = &[
     REFUND_IN_TRAINING,
     REFUND_OF_REFUND,
     REFUND_UNPAID_SALE,
+    REFUND_ALREADY_DONE,
     PAYMENT_INVALID,
     PAYMENT_EXCEEDS_TOTAL,
     PAYMENT_INCOMPLETE,
