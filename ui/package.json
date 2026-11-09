@@ -34,10 +34,10 @@
     "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^6.0.10",
     "typescript": "^6.0.3",
-    "vite-plus": "1.4.0",
+    "vite-plus": "1.5.0",
     "vue-tsc": "^3.3.14"
   },
   "overrides": {
-    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0"
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.5.0"
   }
 }
